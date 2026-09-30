@@ -14,7 +14,8 @@ import { HOME_URL, OVERVIEW_URL } from "./site.js";
 import { closeUmushroomSession, ensureUmushroomPage, getSessionInfo, inspectLogin, openSideWindow, overlay, waitForLoginState } from "./browser.js";
 import { stopDashboard } from "./dashboard.js";
 import { saveSnapshot, snapshotPortfolio } from "./journal.js";
-import { ensureJournalService, recordTrade, stopJournalService } from "./autolog.js";
+import { enqueue, ensureJournalService, recordTrade, stopJournalService } from "./autolog.js";
+import { orderGuard } from "./order-lock.js";
 import { getUmushroomReviewStatus, isReviewActive, stopUmushroomReview, waitForReview } from "./review.js";
 import { buyStock, sellStock } from "./trade.js";
 
@@ -51,17 +52,35 @@ export async function closeUmushroom() {
 /**
  * Buy / sell (paper portfolio). kind is "buy" or "sell"; preview only by default, options.submit=true really submits.
  * Shares the tab with the read-only review, so trading is refused while a review is running.
+ * Runs in the shared task queue (autolog.enqueue): calls that arrive at the same time (e.g. parallel MCP tool calls)
+ * run one after another instead of driving the same browser tab at once.
+ * Orders go through the order guard (order-lock.js): a stock whose earlier order was not confirmed cannot be ordered again.
  */
-export async function tradeUmushroom(kind, options) {
-  if (isReviewActive()) throw new Error("A portfolio review is running; call stop_umushroom_review before trading.");
-  const page = await ensureUmushroomPage({ navigate: false });
-  const login = await inspectLogin(page);
-  if (login.state === "login_required" || login.state === "region_required") throw new Error(login.message);
-  await overlay(page, `${kind === "buy" ? "Buy" : "Sell"} ${options.company}${options.submit ? " (submit)" : " (preview only)"}`);
-  const result = kind === "buy" ? await buyStock(page, options) : await sellStock(page, options);
-  await overlay(page, `${kind === "buy" ? "Buy" : "Sell"} ${options.company}: ${result.submitted ? "submitted" : "preview done, not submitted"}`);
-  if (LOG.enabled) result.log = await logTrade(page, kind, options, result);
-  return result;
+export function tradeUmushroom(kind, options) {
+  if (isReviewActive()) return Promise.reject(new Error("A portfolio review is running; call stop_umushroom_review before trading."));
+  const label = `${kind === "buy" ? "Buy" : "Sell"} ${options.company}${options.submit ? " (submit)" : " (preview)"}`;
+  return enqueue(label, async () => {
+    if (isReviewActive()) throw new Error("A portfolio review is running; call stop_umushroom_review before trading.");
+    const page = await ensureUmushroomPage({ navigate: false });
+    const login = await inspectLogin(page);
+    if (login.state === "login_required" || login.state === "region_required") throw new Error(login.message);
+    await overlay(page, `${kind === "buy" ? "Buy" : "Sell"} ${options.company}${options.submit ? " (submit)" : " (preview only)"}`);
+    const trade = { ...options, guard: orderGuard };
+    let result;
+    try {
+      result = kind === "buy" ? await buyStock(page, trade) : await sellStock(page, trade);
+    } catch (error) {
+      // Submitted but not confirmed: still snapshot the portfolio and record the action, so the journal shows what may have happened
+      if (error.code === "ORDER_UNCONFIRMED" && LOG.enabled && error.result) {
+        await overlay(page, `${kind === "buy" ? "Buy" : "Sell"} ${options.company}: NOT CONFIRMED, check the portfolio`);
+        error.result.log = await logTrade(page, kind, options, error.result).catch(() => undefined);
+      }
+      throw error;
+    }
+    await overlay(page, `${kind === "buy" ? "Buy" : "Sell"} ${options.company}: ${result.submitted ? "submitted" : "preview done, not submitted"}`);
+    if (LOG.enabled) result.log = await logTrade(page, kind, options, result);
+    return result;
+  });
 }
 
 /** Journal mode: after a trade, record the portfolio snapshot and this action (see autolog.recordTrade), then open the journal page. */
@@ -75,10 +94,14 @@ async function logTrade(page, kind, options, result) {
 
 /**
  * Snapshot a portfolio into its journal (holdings and their changes, pending orders, history, summary metrics); opens the journal page beside UMushroom by default.
- * Returns the key points of the snapshot and the journal page URL.
+ * Returns the key points of the snapshot and the journal page URL. Runs in the shared task queue, like trades.
  */
-export async function logPortfolio({ portfolio, portfolioIndex, open = LOG.autoOpen } = {}) {
-  if (isReviewActive()) throw new Error("A portfolio review is running; call stop_umushroom_review before recording a journal.");
+export function logPortfolio({ portfolio, portfolioIndex, open = LOG.autoOpen } = {}) {
+  if (isReviewActive()) return Promise.reject(new Error("A portfolio review is running; call stop_umushroom_review before recording a journal."));
+  return enqueue(`Journal ${portfolio}`, () => snapshotAndOpen({ portfolio, portfolioIndex, open }));
+}
+
+async function snapshotAndOpen({ portfolio, portfolioIndex, open }) {
   const page = await ensureUmushroomPage({ navigate: false });
   const login = await inspectLogin(page);
   if (login.state === "login_required" || login.state === "region_required") throw new Error(login.message);

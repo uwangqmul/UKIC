@@ -9,8 +9,9 @@
 //   POST /api/<action>          adjust portfolios: available / track / untrack / refresh / setHourly / trade
 // POST actions are provided by the journal service (autolog.js) via setDashboardActions; without them the server answers 503.
 //
-// Security: listens only on 127.0.0.1, so other devices on the network cannot reach it; a POST must carry the
-// "x-umushroom-journal: 1" header and come from this page, so other websites cannot use your browser to call these actions.
+// Security: listens only on 127.0.0.1, so other devices on the network cannot reach it; requests must be addressed to
+// 127.0.0.1 / localhost (blocks DNS rebinding); a POST must carry the "x-umushroom-journal: 1" header and come from this page,
+// so other websites cannot use your browser to call these actions.
 // =============================================================================
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -36,6 +37,16 @@ function readBody(req) {
   });
 }
 
+/**
+ * Host check for every request: only addresses of this computer (127.0.0.1 / localhost on this port) are accepted.
+ * Without it a website could use DNS rebinding (its own domain pointing at 127.0.0.1) and pass the Origin check below,
+ * because Origin and Host would then both be that domain.
+ */
+function allowedHost(req) {
+  const port = req.socket.localPort;
+  return [`127.0.0.1:${port}`, `localhost:${port}`].includes(String(req.headers.host ?? "").toLowerCase());
+}
+
 /** Origin check for POST requests: the custom header is required, and Origin (if present) must be this service itself. */
 function allowedPost(req) {
   if (req.headers["x-umushroom-journal"] !== "1") return false;
@@ -52,6 +63,7 @@ function sendJson(res, status, body) {
 /** Handle one request. */
 async function handle(req, res) {
   const url = new URL(req.url, "http://127.0.0.1");
+  if (!allowedHost(req)) return sendJson(res, 403, { error: "Refused: the journal page only answers on 127.0.0.1 / localhost" });
   try {
     if (url.pathname === "/" || url.pathname === "/index.html") {
       const html = await readFile(join(PATHS.web, "journal.html"), "utf8");

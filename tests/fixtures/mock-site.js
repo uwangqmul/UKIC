@@ -16,7 +16,11 @@ export const EQUITIES = [
   { name: "Apple Hospitality REIT Inc", ticker: "APLE", slug: "aple-apple-hospitality-reit", price: 11.52 },
   { name: "Apple Inc", ticker: "AAPL", slug: "aapl-apple", price: 341.07 },
   { name: "Microsoft Corp", ticker: "MSFT", slug: "msft-microsoft", price: 512.3 },
+  // Two share classes whose names normalise to the same "alphabet" (used by the ambiguity tests)
+  { name: "Alphabet Inc Class A", ticker: "GOOGL", slug: "googl-alphabet-class-a", price: 250 },
+  { name: "Alphabet Inc Class C", ticker: "GOOG", slug: "goog-alphabet-class-c", price: 251 },
 ];
+export const SELL_PORTFOLIO_PATH = "/en/profile/you-wang/portfolio/second-portfolio";
 export const PORTFOLIOS = ["First Portfolio", "Second portfolio", "My portfolio", "My portfolio"];
 
 
@@ -104,10 +108,13 @@ select.onclick = (e) => {
   if (opt) { select.querySelector(".portfolio-select-value").textContent = opt.textContent; select.dataset.index = opt.dataset.i; dropdown.hidden = true; }
   else dropdown.hidden = !dropdown.hidden;
 };
+// Test switches (set with page.addInitScript): show another instrument in the form / accept the order but never confirm it
+if (window.__instrumentOverride) popup.querySelector(".trade-overview h5").textContent = window.__instrumentOverride;
 popup.querySelector(".trade-primary-action").onclick = async () => {
   await fetch("/api/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
     side: "buy", ticker: "${eq.ticker}", portfolio: select.querySelector(".portfolio-select-value").textContent,
     portfolioIndex: Number(select.dataset.index ?? 0), shares: Number(shares.value) }) });
+  if (window.__noConfirm) return;
   popup.querySelector(".security-trade").hidden = true;
   popup.querySelector(".success").hidden = false;
 };
@@ -195,6 +202,77 @@ export const portfolioPage = withSearch(`<!doctype html><html><body><div class="
   popup.querySelector('[aria-label="Close popup"]').onclick = () => { popup.hidden = true; };
 </script></div></body></html>`);
 
+// ---------- Second portfolio: holdings with Sell buttons and the sell popup (used by the sell tests) ----------
+// Holdings: two Alphabet share classes (ambiguous name), Tesla with 0 shares available, and Micron hidden behind "See All".
+export const SELL_HOLDINGS = [
+  { name: "Alphabet Inc Class A", ticker: "GOOGL", slug: "googl-alphabet-class-a", shares: 10, available: 10, price: 250 },
+  { name: "Alphabet Inc Class C", ticker: "GOOG", slug: "goog-alphabet-class-c", shares: 5, available: 5, price: 251 },
+  { name: "Tesla Inc", ticker: "TSLA", slug: "tsla-tesla", shares: 3, available: 0, price: 400 },
+  { name: "Micron Technology Inc", ticker: "MU", slug: "mu-micron-technology", shares: 20, available: 20, price: 100, collapsed: true },
+];
+const sellRow = (h, i) => row({ name: h.name, href: `/en/equity/${h.slug}`, body:
+  cell("price", "Price", `USD ${h.price}`) + `<div class="shares info-cell"><span>${h.shares}</span></div>` +
+  `<button class="action-icon-btn sell" data-i="${i}">Sell</button>` });
+
+export const sellPortfolioPage = withSearch(`<!doctype html><html><body><div class="portfolio-page">
+<div class="portfolio-header private"><div class="title-holder"><form class="editable-title"><input type="text" readonly value="Second portfolio"></form></div></div>
+<div class="portfolio-summary-rail"><div class="summary-card primary"><span>Current value</span><strong>USD 10,000.00</strong></div></div>
+<section class="holdings-workspace">
+  <div class="workspace-tabs"><button class="workspace-tab active"><span>All</span><strong>${SELL_HOLDINGS.length}</strong></button></div>
+  <div class="investments-items"><div class="investments equity"><h2>Equities</h2><div class="investments-table">
+    <div class="investments-list">${SELL_HOLDINGS.map((h, i) => h.collapsed ? "" : sellRow(h, i)).join("")}</div>
+    <button class="more-instruments-button">See All</button>
+  </div></div></div>
+</section>
+<div class="popup-box portfolio-sell-popup" hidden>
+  <div class="head"><h4>Sell</h4><a role="button" aria-label="Close popup">x</a></div>
+  <div class="security-trade">
+    <div class="trade-overview"><h5></h5><div class="trade-summary"><span>Market price</span><strong></strong></div></div>
+    <div class="readonly"><p>Second portfolio</p></div>
+    <div class="trade-metric"><span>Available shares</span><strong></strong></div>
+    <div class="market-price-info"><p>The market is currently open.</p></div>
+    <div class="share-stepper"><input type="text" value="1"></div>
+    <div class="amount-control"><input type="text" value=""></div>
+    <div class="weight-input-row"><input type="text" value=""></div>
+    <button class="trade-primary-action">Sell</button>
+  </div>
+  <div class="success" hidden><h3>Order placed</h3><button type="button">Done</button></div>
+</div>
+<script>
+  const HOLDINGS = ${JSON.stringify(SELL_HOLDINGS)};
+  const list = document.querySelector(".investments-list");
+  const sellPopup = document.querySelector(".portfolio-sell-popup");
+  const q = (s) => sellPopup.querySelector(s);
+  let current;
+  // "See All" reveals the collapsed holdings, like the real site
+  document.querySelector(".more-instruments-button").onclick = (e) => {
+    HOLDINGS.forEach((h, i) => { if (h.collapsed) list.insertAdjacentHTML("beforeend", ${JSON.stringify(sellRow({ name: "__N__", slug: "__S__", price: "__P__", shares: "__H__" }, "__I__"))}
+      .replace("__N__", h.name).replace("__S__", h.slug).replace("__P__", h.price).replace("__H__", h.shares).replace("__I__", i)); });
+    e.target.className = "more-instruments-button collapse"; e.target.textContent = "Show Less";
+  };
+  list.addEventListener("click", (e) => {
+    const b = e.target.closest(".action-icon-btn.sell");
+    if (!b) return;
+    current = HOLDINGS[Number(b.dataset.i)];
+    q(".trade-overview h5").textContent = current.name;
+    q(".trade-summary strong").textContent = "USD " + current.price;
+    q(".trade-metric strong").textContent = "";
+    setTimeout(() => { q(".trade-metric strong").textContent = String(current.available); }, 300); // loads a moment later
+    q(".security-trade").hidden = false; q(".success").hidden = true; sellPopup.hidden = false;
+  });
+  const shares = q(".share-stepper input"), amount = q(".amount-control input");
+  shares.addEventListener("keyup", () => { amount.value = (Number(shares.value) * current.price).toFixed(2); });
+  amount.addEventListener("keyup", () => { shares.value = String(+(Number(amount.value) / current.price).toFixed(4)); });
+  q('.head [aria-label="Close popup"]').onclick = () => { sellPopup.hidden = true; };
+  q(".trade-primary-action").onclick = async () => {
+    await fetch("/api/orders", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ side: "sell", ticker: current.ticker, shares: Number(shares.value) }) });
+    if (window.__noConfirm) return; // test switch: accept the order but never confirm it
+    q(".security-trade").hidden = true; q(".success").hidden = false;
+  };
+  q(".success button").onclick = () => { sellPopup.hidden = true; };
+</script></div></body></html>`);
+
 /** Intercept umushroom.com requests and serve the mock pages; orders are recorded in orders. */
 export async function routeMockSite(context, orders = []) {
   await context.route(`${ORIGIN}/**`, async (route) => {
@@ -206,6 +284,7 @@ export async function routeMockSite(context, orders = []) {
     const eq = EQUITIES.find((x) => url.pathname === `/en/equity/${x.slug}`);
     const body = eq ? equityPage(eq)
       : url.pathname === PORTFOLIO_PATH ? portfolioPage
+      : url.pathname === SELL_PORTFOLIO_PATH ? sellPortfolioPage
       : url.pathname === "/en/my-profile" ? profilePage
       : shell("<main>Overview</main>");
     return route.fulfill({ status: 200, contentType: "text/html", body });

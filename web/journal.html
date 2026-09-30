@@ -436,6 +436,7 @@ function eventsPanel(events) {
       <td class="num">${esc(e.marketPrice ?? "")}</td>
       <td class="num">${esc(e.estimatedAmount ?? "")}</td>
       <td>${e.error ? `<span class="badge sell">Failed</span> <span class="muted">${esc(e.error)}</span>`
+          : e.submitted === "unknown" ? '<span class="badge sell">Unconfirmed</span> <span class="muted">may have been placed, check UMushroom</span>'
           : e.submitted ? '<span class="badge buy">Submitted</span>' : '<span class="badge other">Preview only</span>'}</td>
     </tr>`).join("");
   return `<section class="panel"><h2>Activity <small>${events.length} actions made through this project</small></h2>

@@ -12,6 +12,7 @@
     "umushroom": "node scripts/cli.js review",
     "log": "node scripts/cli.js log",
     "journal": "node scripts/cli.js journal",
+    "unlock": "node scripts/cli.js unlock",
     "inspect": "node scripts/inspect.js",
     "explore": "node scripts/explore.js",
     "test": "node --test \"tests/*.test.js\"",
