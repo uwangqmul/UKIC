@@ -1,0 +1,651 @@
+<!doctype html>
+<!--
+  UMushroom Portfolio Journal page
+  Served by src/dashboard.js at http://127.0.0.1:6420/; the data comes from the logs\ folder.
+  Checks every 5 seconds whether the journals changed and refreshes on a new snapshot or new activity.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolio Journal · UMushroom</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --panel: #ffffff; --ink: #17212b; --muted: #5f6b7a; --line: #e3e8ee;
+    --accent: #1f5f57; --accent-soft: #e6f2ef; --chip: #eef1f5;
+    --up: #13804b; --up-soft: #e3f4ea; --down: #c2352b; --down-soft: #fbe7e5;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1418; --panel: #172026; --ink: #e7edf2; --muted: #9aa7b3; --line: #26323b;
+      --accent: #5cc3b0; --accent-soft: #173430; --chip: #202b33;
+      --up: #3fcf86; --up-soft: #173326; --down: #ff7a6e; --down-soft: #3a1f1d;
+      --shadow: none;
+    }
+  }
+  /* "Red up / green down" (Chinese market convention): swaps the up/down colors */
+  body.cn-colors { --up: #c2352b; --up-soft: #fbe7e5; --down: #13804b; --down-soft: #e3f4ea; }
+  @media (prefers-color-scheme: dark) {
+    body.cn-colors { --up: #ff7a6e; --up-soft: #3a1f1d; --down: #3fcf86; --down-soft: #173326; }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  header.top { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header.top h1 { margin: 0; font-size: 17px; }
+  header.top .status { color: var(--muted); font-size: 12px; }
+  header.top .spacer { flex: 1; }
+  header.top label { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); display: inline-block; margin-right: 6px; }
+
+  .layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; padding: 16px 20px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; } }
+
+  nav.list { display: flex; flex-direction: column; gap: 8px; }
+  nav.list button { text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; box-shadow: var(--shadow); }
+  nav.list button.active { border-color: var(--accent); background: var(--accent-soft); }
+  nav.list .name { font-weight: 600; display: block; }
+  nav.list .meta { color: var(--muted); font-size: 12px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+  .panel + .panel { margin-top: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 15px; display: flex; align-items: baseline; gap: 8px; }
+  .panel h2 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+
+  .title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .title-row h2 { font-size: 20px; margin: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: var(--chip); color: var(--muted); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 10px; margin-top: 14px; }
+  .kpi { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .kpi .label { color: var(--muted); font-size: 12px; }
+  .kpi { min-width: 0; }
+  .kpi .value { font-size: 18px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+  .kpi .value small { font-size: 12px; font-weight: 500; color: var(--muted); margin-right: 3px; }
+  .kpi .sub { font-size: 12px; color: var(--muted); }
+
+  .trend { margin-top: 14px; }
+  .trend svg { width: 100%; height: 70px; display: block; }
+  .trend .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  tr:last-child td { border-bottom: none; }
+  .scroll { overflow-x: auto; }
+
+  .chg { display: inline-block; border-radius: 6px; padding: 1px 6px; font-weight: 600; }
+  .chg.up { color: var(--up); background: var(--up-soft); }
+  .chg.down { color: var(--down); background: var(--down-soft); }
+  .chg.flat { color: var(--muted); background: var(--chip); }
+  .badge { display: inline-block; border-radius: 6px; padding: 1px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .badge.buy { color: var(--up); background: var(--up-soft); }
+  .badge.sell { color: var(--down); background: var(--down-soft); }
+  .badge.other { color: var(--muted); background: var(--chip); }
+  .weight { display: inline-flex; align-items: center; gap: 6px; }
+  .weight i { display: inline-block; height: 6px; border-radius: 3px; background: var(--accent); opacity: .7; }
+  .muted { color: var(--muted); }
+  .empty { color: var(--muted); padding: 8px 0; }
+  .hero-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .hero-empty code { background: var(--chip); padding: 2px 6px; border-radius: 4px; color: var(--ink); }
+  /* ---- Adjust portfolio: buttons, form, preview ---- */
+  .btn { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 8px; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { background: var(--down); border-color: var(--down); color: #fff; }
+  .btn.small { padding: 2px 8px; font-size: 12px; }
+  .btn.buy { color: var(--up); } .btn.sell { color: var(--down); }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+  .toolbar label, header.top .hourly { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+  .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+  .form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .form input, .form select { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; min-width: 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--muted); padding: 7px 14px; cursor: pointer; }
+  .seg button.on.buy { background: var(--up-soft); color: var(--up); font-weight: 600; }
+  .seg button.on.sell { background: var(--down-soft); color: var(--down); font-weight: 600; }
+  .preview { margin-top: 12px; border: 1px dashed var(--line); border-radius: 10px; padding: 12px; }
+  .preview dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px 16px; margin: 0 0 12px; }
+  .preview dt { color: var(--muted); font-size: 12px; } .preview dd { margin: 0; font-weight: 600; }
+  .notice { font-size: 13px; border-radius: 8px; padding: 8px 12px; margin-top: 10px; background: var(--chip); color: var(--muted); }
+  .notice.error { background: var(--down-soft); color: var(--down); }
+  .notice.ok { background: var(--up-soft); color: var(--up); }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 1s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .add-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .add-list .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--panel); }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>📒 Portfolio Journal</h1>
+  <span class="status" id="status"><span class="dot"></span>Connecting…</span>
+  <span class="spacer"></span>
+  <span id="busy" class="status"></span>
+  <label class="hourly" title="At every full hour (xx:00), update all portfolios that have hourly updates switched on">
+    <input type="checkbox" id="hourly" disabled> Hourly auto-update <span id="nextRun" class="status"></span></label>
+  <button class="btn small" id="refreshAll" disabled>Update all now</button>
+  <label><input type="checkbox" id="cnColors"> Red up / green down</label>
+</header>
+
+<div class="layout">
+  <aside>
+    <nav class="list" id="list"></nav>
+    <!-- Add portfolio: reads all your portfolios from My profile -->
+    <div style="margin-top:10px">
+      <button class="btn" id="addToggle" disabled style="width:100%">+ Add portfolio</button>
+      <div id="addPanel"></div>
+    </div>
+  </aside>
+  <main id="main">
+    <div id="overview"><div class="hero-empty">Loading journals…</div></div>
+    <div id="controls"></div>  <!-- Adjust-portfolio panel: rebuilt only when switching portfolios, so a data refresh keeps what you are typing -->
+    <div id="details"></div>
+  </main>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// State and helpers
+// ---------------------------------------------------------------------------
+let portfolios = [];     // sidebar list
+let selectedId = null;   // portfolio currently shown
+let lastVersion = null;  // journal version; refresh when it changes
+let status = { actions: false }; // journal service status: can adjust portfolios, hourly updates, task in progress
+let latestShown = null;  // latest snapshot shown (used to suggest company names when adjusting)
+let controlsFor = null;  // portfolio the adjust panel currently belongs to
+let controlsActions = false; // whether the journal service was available when the panel was built
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/** Convert "USD 1,082.28" / "-0.11%" / "- USD 1,082.28" to a number. */
+function num(text) {
+  if (text == null) return null;
+  const raw = String(text).replace(/[, ]/g, "");
+  const m = /(-)?[^\d-]*?(-?\d+(?:\.\d+)?)/.exec(raw);
+  if (!m) return null;
+  const n = Number(m[2]);
+  return m[1] && n > 0 ? -n : n;
+}
+const fmt = (n, digits = 2) => n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+/** Money: show "USD 1,004,210.55" as a small currency code + the number. */
+const money = (text) => {
+  const m = /^([A-Z]{3})\s+(.*)$/.exec(String(text ?? ""));
+  return m ? `<small>${esc(m[1])}</small>${esc(m[2])}` : esc(text ?? "—");
+};
+const time = (iso) => new Date(iso).toLocaleString("en-GB", { hour12: false });
+
+/** Change badge: "▲" for positive, "▼" for negative, flat for 0. text keeps the site's original wording. */
+function change(text, value = num(text)) {
+  if (text == null || text === "") return '<span class="muted">—</span>';
+  const cls = value > 0 ? "up" : value < 0 ? "down" : "flat";
+  const arrow = value > 0 ? "▲ " : value < 0 ? "▼ " : "";
+  return `<span class="chg ${cls} num">${arrow}${esc(text)}</span>`;
+}
+/** Numeric change (versus the previous snapshot); shows nothing when unchanged. */
+function delta(now, before, suffix = "") {
+  if (now == null || before == null || now === before) return "";
+  const d = now - before;
+  const pct = before !== 0 ? ` (${d > 0 ? "+" : ""}${fmt(d / Math.abs(before) * 100)}%)` : "";
+  return `<div>${change(`${d > 0 ? "+" : ""}${fmt(d)}${suffix}${pct}`, d)}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Data loading
+// ---------------------------------------------------------------------------
+async function getJson(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${res.status} ${path}`);
+  return res.json();
+}
+
+/** Call a journal service action (adjust portfolios). Sends the custom header so the server knows the request came from this page. */
+async function post(action, body = {}) {
+  const res = await fetch(`/api/${action}`, {
+    method: "POST", headers: { "content-type": "application/json", "x-umushroom-journal": "1" }, body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { data });
+  return data;
+}
+
+/** Read the journal service status and update the hourly switch, next run time and running task in the header. */
+async function refreshStatus() {
+  try { status = await getJson("/api/status"); } catch { status = { actions: false }; }
+  const on = !!status.actions;
+  $("hourly").disabled = !on;
+  $("hourly").checked = on && !!status.hourly;
+  $("refreshAll").disabled = !on || !!status.busy;
+  $("addToggle").disabled = !on;
+  const next = status.nextRunAt ? new Date(status.nextRunAt).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit" }) : "";
+  const last = status.lastRun ? `last ${new Date(status.lastRun.at).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit" })}` +
+    (status.lastRun.results.some((r) => !r.ok) ? " (with failures)" : "") : "";
+  $("nextRun").textContent = on ? [next && `next ${next}`, last].filter(Boolean).join(" · ") : "(no browser attached, automatic updates unavailable)";
+  $("busy").innerHTML = status.busy ? `<span class="spinner"></span>Running: ${esc(status.busy.label)}` : "";
+}
+
+/** Check whether the journals changed; if so, reload the list and the current portfolio. */
+async function refresh(force = false) {
+  try {
+    await refreshStatus();
+    const { version } = await getJson("/api/version");
+    $("status").innerHTML = `<span class="dot"></span>Live · checking every 5 s · ${new Date().toLocaleTimeString("en-GB", { hour12: false })}`;
+    if (controlsFor && controlsActions !== !!status.actions) controlsFor = null; // rebuild the adjust panel when the service connection changes
+    if (!force && version === lastVersion && (controlsFor || !selectedId)) return;
+    lastVersion = version;
+    portfolios = await getJson("/api/portfolios");
+    if (!selectedId || !portfolios.some((p) => p.id === selectedId)) selectedId = portfolios[0]?.id ?? null;
+    renderList();
+    await renderPortfolio();
+  } catch (error) {
+    $("status").innerHTML = `<span class="dot" style="background:var(--down)"></span>Cannot reach the journal service (${esc(error.message)}), retrying shortly…`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+function renderList() {
+  $("list").innerHTML = portfolios.map((p) => `
+    <button class="${p.id === selectedId ? "active" : ""}" data-id="${esc(p.id)}">
+      <span class="name">${esc(p.name)}</span>
+      <span class="meta num">${esc(p.summary?.currentValue ?? "")}</span><br>
+      <span class="meta">Updated ${esc(time(p.takenAt))}</span>
+    </button>`).join("");
+  for (const button of $("list").querySelectorAll("button")) {
+    button.onclick = () => { selectedId = button.dataset.id; renderList(); renderPortfolio(); };
+  }
+}
+
+async function renderPortfolio() {
+  if (!selectedId) {
+    $("overview").innerHTML = `<div class="panel hero-empty">
+      No portfolio journals yet.<br><br>
+      Click <b>+ Add portfolio</b> on the left, or run <code>npm run log -- "First Portfolio"</code> in the VS Code terminal;<br>
+      buys and sells are also recorded automatically.</div>`;
+    $("controls").innerHTML = ""; $("details").innerHTML = ""; controlsFor = null;
+    return;
+  }
+  const { latest, snapshots, events } = await getJson(`/api/portfolio?id=${encodeURIComponent(selectedId)}`);
+  const previous = snapshots.length > 1 ? snapshots[snapshots.length - 2] : null;
+  latestShown = latest;
+  $("overview").innerHTML = overviewPanel(latest, previous, snapshots) ;
+  bindOverviewButtons();
+  if (controlsFor !== selectedId) renderControls();
+  updateCompanyOptions();
+  $("details").innerHTML = [
+    holdingsPanel(latest, previous),
+    pendingPanel(latest),
+    transactionsPanel(latest),
+    eventsPanel(events),
+  ].join("");
+  bindHoldingButtons();
+}
+
+/** Overview: name, tags, key metrics and current-value trend. */
+function overviewPanel(s, prev, snapshots) {
+  const m = s.summary.metrics ?? {};
+  const metric = (key) => m[key]?.value;
+  const kpi = (label, value, sub = "") => `<div class="kpi"><div class="label">${label}</div><div class="value num">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+  const ratios = ["Sharpe", "Sortino", "Info ratio"].filter((k) => m[k]).map((k) => `${k} ${esc(m[k].value)}`).join(" · ");
+  return `<section class="panel">
+    <div class="title-row">
+      <h2>${esc(s.portfolio.name)}</h2>
+      <a href="${esc(s.portfolio.url)}" target="_blank" rel="noopener">Open on UMushroom ↗</a>
+    </div>
+    <div class="chips">
+      ${[s.summary.owner && `Owner ${s.summary.owner}`, s.summary.currency && `Currency ${s.summary.currency}`,
+         s.summary.visibility, s.summary.published && `Published ${s.summary.published}`,
+         `${snapshots.length} snapshots`, `Latest snapshot ${time(s.takenAt)}`]
+        .filter(Boolean).map((c) => `<span class="chip">${esc(c)}</span>`).join("")}
+    </div>
+    <div class="kpis">
+      ${kpi("Current value", money(s.summary.currentValue), prev ? delta(num(s.summary.currentValue), num(prev.summary.currentValue)) || "Same as last snapshot" : "")}
+      ${kpi("Cash", money(s.summary.cash), esc(s.summary.cashShare ?? ""))}
+      ${kpi("Invested", money(s.summary.invested), esc(s.summary.investedShare ?? ""))}
+      ${kpi("Performance", change(metric("Performance")), "Overall portfolio performance")}
+      ${kpi("Risk level", esc(metric("Risk level") ?? "—"))}
+      ${kpi("Benchmark", `<span style="font-size:14px">${esc(metric("Benchmark") ?? "—")}</span>`, esc(ratios))}
+    </div>
+    ${trend(snapshots)}
+    <div class="toolbar">
+      <button class="btn small" data-act="refreshOne" ${status.actions && !status.busy ? "" : "disabled"}>Update this portfolio now</button>
+      <label><input type="checkbox" data-act="hourlyOne" ${portfolios.find((p) => p.id === selectedId)?.hourly !== false ? "checked" : ""} ${status.actions ? "" : "disabled"}> Include in hourly updates</label>
+      <button class="btn small" data-act="untrack" ${status.actions ? "" : "disabled"}>Remove from list</button>
+      <span class="muted" id="overviewMsg" style="font-size:12px"></span>
+    </div>
+  </section>`;
+}
+
+/** Current-value trend (shown once there are at least two snapshots). */
+function trend(snapshots) {
+  const points = snapshots.map((s) => ({ t: s.takenAt, v: num(s.summary.currentValue) })).filter((p) => p.v != null);
+  if (points.length < 2) return `<div class="trend muted" style="font-size:12px">The current-value trend appears here after one more snapshot.</div>`;
+  const vs = points.map((p) => p.v), min = Math.min(...vs), max = Math.max(...vs), span = max - min || 1;
+  const x = (i) => (i / (points.length - 1)) * 1000, y = (v) => max === min ? 35 : 62 - ((v - min) / span) * 54; // draw in the middle when the value never changes
+  const path = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const color = vs.at(-1) >= vs[0] ? "var(--up)" : "var(--down)";
+  return `<div class="trend">
+    <div class="label muted" style="font-size:12px">Current-value trend (${points.length} snapshots, low ${fmt(min)} · high ${fmt(max)})</div>
+    <svg viewBox="0 0 1000 70" preserveAspectRatio="none" role="img" aria-label="Current-value trend">
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div class="axis"><span>${esc(time(points[0].t))}</span><span>${esc(time(points.at(-1).t))}</span></div>
+  </div>`;
+}
+
+/** Holdings: each stock's performance, plus price / share changes versus the previous snapshot. */
+function holdingsPanel(s, prev) {
+  if (!s.holdings.length) return `<section class="panel"><h2>Holdings</h2><div class="empty">No filled holdings yet.</div></section>`;
+  const before = new Map((prev?.holdings ?? []).map((h) => [h.href, h]));
+  const rows = s.holdings.map((h) => {
+    const p = before.get(h.href);
+    const w = num(h.weight) ?? 0;
+    return `<tr>
+      <td><a href="https://umushroom.com${esc(h.href)}" target="_blank" rel="noopener">${esc(h.name)}</a>
+          <div class="muted" style="font-size:12px">${esc(h.assetClass)}${p ? "" : prev ? " · new" : ""}</div></td>
+      <td class="num">${esc(h.addedOn ?? "")}</td>
+      <td class="num">${esc(h.price ?? "")}${p ? delta(num(h.price), num(p.price)) : ""}</td>
+      <td>${change(h.performance)}</td>
+      <td class="num">${esc(h.shares ?? "")}${p ? delta(num(h.shares), num(p.shares), " sh") : ""}</td>
+      <td class="num">${esc(h.value ?? "")}</td>
+      <td><span class="weight num"><i style="width:${Math.max(2, Math.min(80, w * 0.8))}px"></i>${esc(h.weight ?? "")}</span></td>
+      <td style="white-space:nowrap"><button class="btn small buy" data-quick="buy" data-company="${esc(h.name)}" title="Buy more">+</button>
+          <button class="btn small sell" data-quick="sell" data-company="${esc(h.name)}" title="Sell">−</button></td>
+    </tr>`;
+  }).join("");
+  const gone = prev ? prev.holdings.filter((h) => !s.holdings.some((x) => x.href === h.href)) : [];
+  return `<section class="panel"><h2>Holdings <small>${s.holdings.length} stocks · performance since added to the portfolio${prev ? "; small figures show the change since the last snapshot" : ""}</small></h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Stock</th><th>Added</th><th>Price</th><th>Change</th><th>Shares</th><th>Value</th><th>Weight</th><th>Adjust</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${gone.length ? `<div class="muted" style="margin-top:8px;font-size:12px">Sold out since the last snapshot: ${gone.map((h) => esc(h.name)).join(", ")}</div>` : ""}
+  </section>`;
+}
+
+/** Pending orders: placed while the market is closed, filled when it opens. Negative shares mean a sell. */
+function pendingPanel(s) {
+  if (!s.pending.length) return `<section class="panel"><h2>Pending orders</h2><div class="empty">No orders waiting to be filled.</div></section>`;
+  const rows = s.pending.map((o) => {
+    const sell = (num(o.shares) ?? 0) < 0;
+    return `<tr>
+      <td><a href="https://umushroom.com${esc(o.href)}" target="_blank" rel="noopener">${esc(o.name)}</a></td>
+      <td><span class="badge ${sell ? "sell" : "buy"}">${sell ? "Sell" : "Buy"}</span></td>
+      <td class="num">${esc(String(o.shares ?? "").replace(/^-/, ""))}</td>
+      <td class="num">${esc(o.price ?? "")}</td>
+      <td class="num">${esc(o.value ?? "")}</td>
+      <td class="num">${esc(o.expectedWeight ?? "")}</td>
+      <td>${change(o.performance1y)}</td>
+      <td class="num">${esc(o.executionDate ?? "")}</td>
+      <td>${esc(o.status ?? "")}</td>
+    </tr>`;
+  }).join("");
+  return `<section class="panel"><h2>Pending orders <small>${s.pending.length}, filled at market price when the market opens</small></h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Stock</th><th>Side</th><th>Shares</th><th>Price</th><th>Amount</th><th>Expected weight</th><th>1-year change</th><th>Order date</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></section>`;
+}
+
+/** Transaction history: filled buys/sells, dividends and cash movements recorded by UMushroom (newest first). */
+function transactionsPanel(s) {
+  if (!s.transactions.length) return `<section class="panel"><h2>Transaction history</h2><div class="empty">No transactions yet.</div></section>`;
+  const label = { buy: "Buy", sell: "Sell", cash: "Cash", dividend: "Dividend" };
+  const rows = s.transactions.map((t) => {
+    const kind = t.type.toLowerCase();
+    return `<tr>
+      <td class="num">${esc(t.date)}</td>
+      <td><span class="badge ${kind === "buy" ? "buy" : kind === "sell" ? "sell" : "other"}">${esc(label[kind] ?? t.type)}</span></td>
+      <td style="text-align:left">${esc(t.description)}</td>
+      <td>${change(t.value)}</td>
+      <td class="num muted">${esc(t.balanceAfterDay ?? "")}</td>
+    </tr>`;
+  }).join("");
+  return `<section class="panel"><h2>Transaction history <small>${s.transactions.length} entries, from UMushroom's History</small></h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Date</th><th>Type</th><th style="text-align:left">Description</th><th>Amount</th><th>Balance that day</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></section>`;
+}
+
+/** Activity: buys / sells made through this project (newest first). */
+function eventsPanel(events) {
+  if (!events.length) return `<section class="panel"><h2>Activity</h2><div class="empty">No buys / sells made through this project yet.</div></section>`;
+  const rows = [...events].reverse().map((e) => `<tr>
+      <td class="num">${esc(time(e.at))}</td>
+      <td><span class="badge ${e.action === "sell" ? "sell" : "buy"}">${e.action === "sell" ? "Sell" : "Buy"}</span></td>
+      <td style="text-align:left">${esc(e.equity ?? e.company)}</td>
+      <td class="num">${esc(e.shares ?? "")}</td>
+      <td class="num">${esc(e.marketPrice ?? "")}</td>
+      <td class="num">${esc(e.estimatedAmount ?? "")}</td>
+      <td>${e.error ? `<span class="badge sell">Failed</span> <span class="muted">${esc(e.error)}</span>`
+          : e.submitted ? '<span class="badge buy">Submitted</span>' : '<span class="badge other">Preview only</span>'}</td>
+    </tr>`).join("");
+  return `<section class="panel"><h2>Activity <small>${events.length} actions made through this project</small></h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Time</th><th>Action</th><th style="text-align:left">Stock</th><th>Shares</th><th>Market price</th><th>Estimated amount</th><th>Result</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Adjust portfolio
+// ---------------------------------------------------------------------------
+let tradeKind = "buy";      // current choice: buy / sell
+let pendingPreview = null;  // order parameters that were previewed and await confirmation
+
+/** Show a notice (kind: info / ok / error). */
+function notice(el, text, kind = "info") {
+  el.innerHTML = text ? `<div class="notice ${kind === "info" ? "" : kind}">${text}</div>` : "";
+}
+
+/** The adjust-portfolio panel (rebuilt only when switching portfolios). */
+function renderControls() {
+  controlsFor = selectedId;
+  controlsActions = !!status.actions;
+  pendingPreview = null;
+  if (!status.actions) {
+    $("controls").innerHTML = `<section class="panel"><h2>Adjust portfolio</h2>
+      <div class="notice">The journal service has no browser attached, so portfolios cannot be adjusted here. Double-click <b>start-umushroom.cmd</b>, or run <code>npm run open</code> / <code>npm run journal</code> and use the journal window that opens.</div></section>`;
+    return;
+  }
+  $("controls").innerHTML = `<section class="panel"><h2>Adjust portfolio <small>Preview first, then submit once it looks right; runs in a background tab, about 30 s</small></h2>
+    <div class="form">
+      <label>Action<span class="seg" id="kindSeg">
+        <button type="button" data-kind="buy" class="buy">Buy</button><button type="button" data-kind="sell" class="sell">Sell</button></span></label>
+      <label>Company name or ticker<input id="company" list="companyOptions" placeholder="e.g. Apple or AAPL" autocomplete="off"></label>
+      <label>By<select id="qtyType"><option value="shares">Shares</option><option value="amount">Amount</option></select></label>
+      <label><span id="qtyLabel">Shares</span><input id="qty" type="number" min="0" step="any" placeholder="e.g. 1"></label>
+      <label id="allBox" style="display:none;flex-direction:row;align-items:center;gap:6px;color:var(--ink)"><input type="checkbox" id="sellAll"> Sell all</label>
+      <div><button class="btn primary" id="previewBtn">Preview</button></div>
+    </div>
+    <datalist id="companyOptions"></datalist>
+    <div id="tradeMsg"></div>
+    <div id="previewBox"></div>
+  </section>`;
+  for (const b of $("kindSeg").querySelectorAll("button")) b.onclick = () => setKind(b.dataset.kind);
+  $("qtyType").onchange = () => { $("qtyLabel").textContent = $("qtyType").value === "shares" ? "Shares" : "Amount (portfolio currency)"; clearPreview(); };
+  $("sellAll").onchange = () => { $("qty").disabled = $("sellAll").checked; clearPreview(); };
+  for (const id of ["company", "qty"]) $(id).oninput = clearPreview;
+  $("previewBtn").onclick = () => runTrade(false);
+  setKind(tradeKind);
+}
+
+/** Switch between buy and sell. Selling allows "Sell all" and only works for stocks already in the portfolio. */
+function setKind(kind) {
+  tradeKind = kind;
+  for (const b of $("kindSeg").querySelectorAll("button")) b.classList.toggle("on", b.dataset.kind === kind);
+  $("allBox").style.display = kind === "sell" ? "flex" : "none"; // "Sell all" is only shown when selling
+  if (kind !== "sell") { $("sellAll").checked = false; $("qty").disabled = false; }
+  clearPreview();
+}
+
+/** Company-name suggestions: the stocks currently held. */
+function updateCompanyOptions() {
+  const list = $("companyOptions");
+  if (list) list.innerHTML = (latestShown?.holdings ?? []).map((h) => `<option value="${esc(h.name)}">`).join("");
+}
+
+/** The + / − buttons on each holdings row: prefill the company name and switch the action. */
+function bindHoldingButtons() {
+  for (const b of document.querySelectorAll("[data-quick]")) {
+    b.onclick = () => {
+      if (!status.actions) return;
+      setKind(b.dataset.quick);
+      $("company").value = b.dataset.company;
+      $("qty").focus();
+      $("controls").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  }
+}
+
+function clearPreview() { pendingPreview = null; if ($("previewBox")) $("previewBox").innerHTML = ""; }
+
+/** Read the form into order parameters; returns null and shows a message on error. */
+function readOrder() {
+  const company = $("company").value.trim();
+  const all = tradeKind === "sell" && $("sellAll").checked;
+  const qty = Number($("qty").value);
+  if (!company) { notice($("tradeMsg"), "Please enter a company name or ticker.", "error"); return null; }
+  if (!all && !(qty > 0)) { notice($("tradeMsg"), "Please enter a quantity greater than 0.", "error"); return null; }
+  const order = { kind: tradeKind, id: selectedId, company };
+  if (all) order.shares = "all";
+  else order[$("qtyType").value] = qty;
+  return order;
+}
+
+/** Preview (submit=false) or submit (submit=true). */
+async function runTrade(submit) {
+  const order = submit ? pendingPreview : readOrder();
+  if (!order) return;
+  const verb = order.kind === "buy" ? "buy" : "sell";
+  const buttons = document.querySelectorAll("#controls button");
+  buttons.forEach((b) => { b.disabled = true; });
+  notice($("tradeMsg"), `<span class="spinner"></span>${submit ? "Submitting" : "Previewing"} ${verb} ${esc(order.company)}… (runs in a background tab, about 30 s)`);
+  try {
+    const r = await post("trade", { ...order, submit });
+    if (!submit) {
+      pendingPreview = order;
+      showPreview(r, order);
+      notice($("tradeMsg"), "");
+    } else {
+      pendingPreview = null;
+      $("previewBox").innerHTML = "";
+      notice($("tradeMsg"), `✅ Submitted: ${verb} ${esc(r.preview?.shares ?? "")} shares of ${esc(r.equity?.name ?? r.holding?.name ?? order.company)}, estimated ${esc(r.preview?.estimatedAmount ?? "")}.` +
+        (r.log?.ok ? " Journal updated." : r.log ? ` Journal update failed: ${esc(r.log.error)}` : ""), "ok");
+      await refresh(true);
+    }
+  } catch (error) {
+    notice($("tradeMsg"), `❌ ${esc(error.message)}`, "error");
+  } finally {
+    buttons.forEach((b) => { b.disabled = false; });
+    if (tradeKind === "sell" && $("sellAll").checked) $("qty").disabled = true;
+  }
+}
+
+/** Show the preview result and the "Confirm" button. */
+function showPreview(r, order) {
+  const p = r.preview ?? {};
+  const sell = order.kind === "sell";
+  const rows = [
+    ["Stock", r.equity ? `${r.equity.name} (${r.equity.ticker})` : r.holding?.name],
+    ["Portfolio", p.portfolio || latestShown?.portfolio.name],
+    ["Market price", p.marketPrice], ["Shares", p.shares], ["Estimated amount", p.estimatedAmount], ["Expected weight", p.expectedWeight],
+    ...Object.entries(p.metrics ?? {}),
+  ].filter(([, v]) => v != null && v !== "");
+  $("previewBox").innerHTML = `<div class="preview">
+    <dl>${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd class="num">${esc(v)}</dd></div>`).join("")}</dl>
+    ${r.equity?.alternatives?.length ? `<div class="muted" style="font-size:12px;margin-bottom:8px">Other stocks with the same name: ${esc(r.equity.alternatives.join(", "))} (if this is not the one you want, use the ticker instead)</div>` : ""}
+    ${p.notice ? `<div class="muted" style="font-size:12px;margin-bottom:10px">${esc(p.notice)}</div>` : ""}
+    <button class="btn ${sell ? "danger" : "primary"}" id="confirmBtn">Confirm ${sell ? "sell" : "buy"}</button>
+    <button class="btn" id="cancelBtn">Cancel</button>
+  </div>`;
+  $("confirmBtn").onclick = () => runTrade(true);
+  $("cancelBtn").onclick = clearPreview;
+}
+
+/** Buttons on the overview panel: update now, hourly switch, remove from list. */
+function bindOverviewButtons() {
+  const msg = $("overviewMsg");
+  const q = (act) => document.querySelector(`[data-act="${act}"]`);
+  if (!q("refreshOne")) return;
+  q("refreshOne").onclick = async () => {
+    q("refreshOne").disabled = true;
+    msg.innerHTML = '<span class="spinner"></span>Updating (about 20 s)…';
+    try { await post("refresh", { id: selectedId }); msg.textContent = "Updated"; await refresh(true); }
+    catch (error) { msg.textContent = "Update failed: " + error.message; q("refreshOne").disabled = false; }
+  };
+  q("hourlyOne").onchange = async (e) => {
+    try { await post("setHourly", { id: selectedId, enabled: e.target.checked }); await refresh(true); }
+    catch (error) { msg.textContent = error.message; }
+  };
+  q("untrack").onclick = async () => {
+    if (!confirm("Remove this portfolio from the list? Its journal files are kept, and you can add it back later with \"Add portfolio\".")) return;
+    await post("untrack", { id: selectedId }).catch((error) => { msg.textContent = error.message; });
+    selectedId = null; controlsFor = null; await refresh(true);
+  };
+}
+
+/** Add portfolio: reads all your portfolios from My profile; picking one records a snapshot right away. */
+async function toggleAddPanel() {
+  const panel = $("addPanel");
+  if (panel.innerHTML) { panel.innerHTML = ""; return; }
+  panel.innerHTML = '<div class="notice"><span class="spinner"></span>Loading your portfolio list (about 15 s)…</div>';
+  try {
+    const list = await post("available");
+    panel.innerHTML = `<div class="add-list">${list.map((p) => `
+      <div class="row"><span>${esc(p.name)}${p.index > 1 ? ` <span class="muted">(${p.index})</span>` : ""}</span>
+        ${p.tracked ? '<span class="muted">Added</span>'
+          : `<button class="btn small" data-url="${esc(p.url)}" data-index="${p.index}">Add</button>`}</div>`).join("")}</div>`;
+    for (const b of panel.querySelectorAll("button[data-url]")) {
+      b.onclick = async () => {
+        b.disabled = true; b.innerHTML = '<span class="spinner"></span>Recording';
+        try {
+          const r = await post("track", { url: b.dataset.url, portfolioIndex: Number(b.dataset.index) });
+          selectedId = r.id; controlsFor = null; panel.innerHTML = ""; await refresh(true);
+        } catch (error) { b.disabled = false; b.textContent = "Retry"; b.title = error.message; }
+      };
+    }
+  } catch (error) {
+    notice(panel, "Loading failed: " + esc(error.message), "error");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Startup
+// ---------------------------------------------------------------------------
+try { $("cnColors").checked = localStorage.getItem("cnColors") === "1"; } catch {}
+document.body.classList.toggle("cn-colors", $("cnColors").checked);
+$("cnColors").onchange = (e) => {
+  document.body.classList.toggle("cn-colors", e.target.checked);
+  try { localStorage.setItem("cnColors", e.target.checked ? "1" : "0"); } catch {}
+};
+$("addToggle").onclick = toggleAddPanel;
+$("hourly").onchange = async (e) => { await post("setHourly", { enabled: e.target.checked }).catch(() => {}); refreshStatus(); };
+$("refreshAll").onclick = async () => {
+  $("refreshAll").disabled = true;
+  await post("refresh").catch((error) => alert("Update failed: " + error.message));
+  refresh(true);
+};
+refresh(true);
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

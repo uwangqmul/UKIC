@@ -1,0 +1,11 @@
+# Dependencies and caches
+node_modules/
+.npm-cache/
+# Inspector local state
+.mcp-inspector/
+# Chrome profile folder (contains your sign-in, never commit or share it)
+.browser-data/
+# Read-only review reports, portfolio journals, explore-helper commands and results
+reports/
+logs/
+.explore/

@@ -1,0 +1,29 @@
+{
+  "name": "mcp-browser-click-example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UMushroom portfolio navigation and visible Chrome click checks through MCP.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "open": "node scripts/open.js",
+    "login": "node scripts/login.js",
+    "inspect": "node scripts/inspect.js",
+    "umushroom": "node scripts/umushroom.js",
+    "test": "node --test",
+    "explore": "node scripts/explore.js",
+    "trade": "node scripts/trade.js",
+    "test:live": "node --test tests/live-buy.test.js"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "playwright": "^1.63.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "2.8.0"
+  }
+}

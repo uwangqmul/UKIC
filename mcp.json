@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "umushroom": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "C:\\Users\\wangzuo\\Desktop\\project\\With_Nick\\src\\server.js"
+      ],
+      "cwd": "C:\\Users\\wangzuo\\Desktop\\project\\With_Nick"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "mcp-browser-click-example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UMushroom paper-portfolio automation: open without signing in, buy/sell, portfolio journal page, read-only review (MCP server + CLI).",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "login": "node scripts/cli.js login",
+    "open": "node scripts/cli.js open",
+    "trade": "node scripts/cli.js trade",
+    "umushroom": "node scripts/cli.js review",
+    "log": "node scripts/cli.js log",
+    "journal": "node scripts/cli.js journal",
+    "inspect": "node scripts/inspect.js",
+    "explore": "node scripts/explore.js",
+    "test": "node --test \"tests/*.test.js\"",
+    "test:live": "node --test tests/live-buy.test.js"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "playwright": "^1.63.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "2.8.0"
+  }
+}
