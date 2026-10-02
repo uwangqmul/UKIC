@@ -11,8 +11,9 @@ import { LOG } from "./config.js";
 import { getWorkerPage } from "./browser.js";
 import { setDashboardActions, startDashboard } from "./dashboard.js";
 import { appendEvent, portfolioId, readSettings, saveSnapshot, snapshotPortfolio, updateSettings } from "./journal.js";
+import { orderGuard } from "./order-lock.js";
 import { isReviewActive } from "./review.js";
-import { buyStock, readProfilePortfolios, sellStock } from "./trade.js";
+import { buyStock, equitySlug, readProfilePortfolios, sellStock } from "./trade.js";
 
 // ---------------------------------------------------------------------------
 // Task queue: only one browser operation at a time
@@ -38,6 +39,10 @@ export function enqueue(label, task) {
 /**
  * After a trade, take a snapshot of the portfolio and append an activity entry (called after a buy/sell).
  * A recording failure never affects the trade result; it is only reported in the returned error.
+ * The snapshot also tells whether the stock now has pending orders (placed while the market is closed, filled at the next open
+ * at a price not known yet), recorded as pendingOrdersForStock / fillStatus; more than one gives a warning (e.g. a second buy
+ * placed before the first one was filled).
+ * result.submitted may be "unknown" (submitted but not confirmed, see trade.js); it is recorded as such.
  */
 export async function recordTrade(page, kind, options, result) {
   const target = kind === "sell"
@@ -54,8 +59,17 @@ export async function recordTrade(page, kind, options, result) {
   try {
     const snapshot = await snapshotPortfolio(page, target);
     await saveSnapshot(snapshot, { portfolioIndex: options.portfolioIndex });
+    const log = { ok: true, id: snapshot.id, holdings: snapshot.holdings.length, pending: snapshot.pending.length };
+    const key = equitySlug(kind === "buy" ? result.equity?.url : result.holding?.href);
+    if (key && result.submitted) {
+      const pendingForStock = snapshot.pending.filter((p) => equitySlug(p.href) === key).length;
+      event.pendingOrdersForStock = log.pendingOrdersForStock = pendingForStock;
+      event.fillStatus = result.submitted === "unknown" ? "unknown: the order was not confirmed, check Pending Orders / History"
+        : pendingForStock ? "pending: fills when the market opens, at the opening price" : "not pending (filled, or not shown yet)";
+      if (pendingForStock > 1) log.warning = `${pendingForStock} pending orders for this stock; they all fill at the next market open.`;
+    }
     await appendEvent(snapshot.id, event);
-    return { ok: true, id: snapshot.id, holdings: snapshot.holdings.length, pending: snapshot.pending.length };
+    return log;
   } catch (error) {
     // If the snapshot fails but the portfolio URL is known, still record the action
     if (result.portfolioUrl) await appendEvent(portfolioId(result.portfolioUrl), event).catch(() => {});
@@ -182,7 +196,15 @@ const actions = {
     };
     return enqueue(`${kind === "buy" ? "Buy" : "Sell"} ${company}${options.submit ? " (submit)" : " (preview)"}`, async () => {
       const page = await getWorkerPage();
-      const result = kind === "buy" ? await buyStock(page, options) : await sellStock(page, options);
+      const trade = { ...options, guard: orderGuard };
+      let result;
+      try {
+        result = kind === "buy" ? await buyStock(page, trade) : await sellStock(page, trade);
+      } catch (error) {
+        // Submitted but not confirmed: record it too, so the activity log shows the order may exist
+        if (error.code === "ORDER_UNCONFIRMED" && LOG.enabled && error.result) await recordTrade(page, kind, options, error.result).catch(() => {});
+        throw error;
+      }
       // Only a real submission is snapshotted and recorded; a preview does not change the portfolio and just returns the preview data
       if (result.submitted && LOG.enabled) result.log = await recordTrade(page, kind, options, result);
       return result;

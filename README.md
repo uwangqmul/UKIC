@@ -20,6 +20,7 @@ With_Nick/
 │  ├─ site.js            site structure: URLs, page selectors, portfolio URL rules (change this when the site is redesigned)
 │  ├─ browser.js         browser session (attach to your everyday Chrome / project profile) and shared page helpers
 │  ├─ trade.js           buy / sell
+│  ├─ order-lock.js      order locks: a stock whose order was not confirmed cannot be ordered again until checked
 │  ├─ journal.js         journal mode: portfolio snapshots (holdings, performance, pending orders, history) and journal storage
 │  ├─ dashboard.js       local server for the journal page (http://127.0.0.1:6420/)
 │  ├─ autolog.js         journal service: adjusting portfolios from the page, hourly updates
@@ -29,13 +30,15 @@ With_Nick/
 ├─ web/
 │  └─ journal.html       journal page
 ├─ scripts/
-│  ├─ cli.js             command line: login / open / trade / review / log / journal
+│  ├─ cli.js             command line: login / open / trade / review / log / journal / unlock
 │  ├─ inspect.js         starts the MCP Inspector
 │  └─ explore.js         page-exploration helper (for development)
 └─ tests/
    ├─ buy.test.js        buy tests (local mock pages)
    ├─ journal.test.js    journal mode tests (local mock pages)
    ├─ autolog.test.js    journal service tests: adjusting portfolios from the page, hourly updates, API security
+   ├─ order-safety.test.js  strict stock matching, order locks, selling (local mock pages)
+   ├─ trade-queue.test.js   parallel trades run one at a time; pending orders recorded in the journal
    ├─ fixtures/mock-site.js  UMushroom mock site shared by the tests
    ├─ live-buy.test.js   buy test against the real site (skipped by default)
    └─ site.test.js       portfolio URL rule tests
@@ -96,7 +99,7 @@ Arguments:
 | Argument | Meaning |
 |---|---|
 | `buy` / `sell` | buy more / sell |
-| company | company name (`Apple`, `Microsoft`) or ticker (`AAPL`, `MSFT`) |
+| company | ticker (`AAPL`, `MSFT`, recommended), company name (`Apple`) or the stock's page address (`https://umushroom.com/en/equity/aapl-apple`, skips the search) |
 | `--portfolio` | portfolio name, e.g. `"First Portfolio"`; optional for buying (uses the default portfolio), required for selling |
 | `--portfolio-index` | which one to use when several portfolios share a name (starting at 1), e.g. two `"My portfolio"`s |
 | `--shares` | number of shares; `all` is allowed when selling |
@@ -131,6 +134,26 @@ Add the MCP server to your client's config (see "Connecting MCP clients" below),
 | Asked to sign in | Run `npm run login` again and sign in |
 | Google says "This browser or app may not be secure" | Don't sign in inside an automated window; use `npm run login` instead |
 | Error about portfolios with the same name | Add `--portfolio-index 1` or `2` |
+| "does not match any equity" / "matches several equities" | The name was a typo, an alias ("Google") or ambiguous ("Alphabet" = Class A and C); use the ticker or the stock's page address |
+| "Not submitted: the earlier … was never confirmed" | See "Order safety" below |
+
+## Order safety
+
+These rules apply to every buy / sell (command line, MCP tools and the journal page):
+
+- **Strict stock matching.** An order is only placed for an exact ticker or exact company name. A search result that merely resembles the text (a typo such as "Nvidea", an alias such as "Google") or several equally good matches ("Alphabet": Class A and Class C) raise an error instead of guessing. The order form must also show the chosen stock before anything is submitted. Sells match holdings the same way, and holdings hidden behind "See All" are found.
+- **No duplicate orders.** If UMushroom does not confirm an order within 20 seconds of submitting, the order *may* have been placed. The result is then `submitted: "unknown"` (shown as "Unconfirmed" on the journal page) and the stock is **locked**: further orders for it are refused (previews still work), so it can't be ordered twice. The same happens if the program stops between the click and the confirmation. Check Pending Orders / History on UMushroom, then clear the lock:
+
+```powershell
+npm run unlock                    # list the locks
+npm run unlock -- aapl-apple      # clear one (the key is shown in the error message)
+npm run unlock -- all             # clear all
+```
+
+- **One browser action at a time.** Trades and snapshots requested at the same moment (for example parallel MCP tool calls) run one after another instead of driving the same tab at once.
+- **Pending orders.** After a submitted trade the journal records whether the stock is a pending order (`fillStatus`, `pendingOrdersForStock`: it fills at the next market open, at a price not known yet) and warns when there is more than one pending order for it.
+
+For the fastest trades set `$env:MCP_SLOW_MO='0'` (the default 300 ms per step is there so you can watch each step).
 
 ## Journal mode
 
@@ -295,6 +318,10 @@ npm test
 ### Journal mode tests (local mock, never touches the real site)
 
 `tests\journal.test.js` uses a mock portfolio page to test snapshot reading (overview, all holdings after expanding, pending orders, transaction history), journal storage, the journal page API and page rendering; `tests\autolog.test.js` uses headless Chrome to test adding portfolios from the journal page, previewing and submitting a buy, switching and running hourly updates, and that the API only accepts requests from the journal page itself. Journals go to a temporary folder; these run as part of `npm test`.
+
+### Order-safety and queue tests (local mock, never touches the real site)
+
+`tests\order-safety.test.js` covers the strict stock matching, order locks (unconfirmed orders, stopped processes, clearing), and selling (share classes, holdings behind "See All", sell all, limits). `tests\trade-queue.test.js` checks that parallel trades through the MCP / command-line entry point run one at a time and that pending orders are recorded in the journal. Both run as part of `npm test`.
 
 ### Live-site buy test (skipped by default)
 

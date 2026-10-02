@@ -54,6 +54,20 @@ test("security: requests without the custom header or from another website are r
   assert.equal((await post("nope")).status, 404);
 });
 
+test("security: requests addressed to another host name (DNS rebinding) are refused", async () => {
+  const { request } = await import("node:http");
+  const port = new URL(url).port;
+  const status = (path, method, headers) => new Promise((resolve, reject) => {
+    const req = request({ host: "127.0.0.1", port, path, method, headers }, (res) => { res.resume(); resolve(res.statusCode); });
+    req.on("error", reject);
+    req.end(method === "POST" ? "{}" : undefined);
+  });
+  const evil = `evil.example:${port}`;
+  assert.equal(await status("/api/portfolios", "GET", { host: evil }), 403);
+  assert.equal(await status("/api/trade", "POST", { host: evil, origin: `http://${evil}`, "x-umushroom-journal": "1", "content-type": "application/json" }), 403);
+  assert.equal(await status("/api/portfolios", "GET", { host: `localhost:${port}` }), 200);
+});
+
 test("status: the journal service is available, hourly updates are on by default and the next run is scheduled", async () => {
   const status = await (await fetch(url + "api/status")).json();
   assert.equal(status.actions, true);

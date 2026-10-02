@@ -10,6 +10,7 @@
 //   npm run log -- <portfolio name> [--portfolio-index N]
 //                                journal mode: snapshot a portfolio and open the journal page beside it (Ctrl+C to stop)
 //   npm run journal              open only the journal page (portfolios can be adjusted there; updates every full hour while running; Ctrl+C to stop)
+//   npm run unlock [-- <key>|all] list order locks, or clear one / all of them (see src/order-lock.js)
 //
 // Every command loads src/ with a dynamic import, so environment-variable defaults can be set before the configuration is read.
 // =============================================================================
@@ -189,7 +190,25 @@ async function journal() {
 }
 
 // -----------------------------------------------------------------------------
-const commands = { login, open, trade, review, log, journal };
+// unlock: list or clear order locks (see src/order-lock.js). A stock is locked when an order for it was submitted
+// but UMushroom never confirmed it; check Pending Orders / History on UMushroom first, then clear the lock.
+// -----------------------------------------------------------------------------
+async function unlock() {
+  const { readLocks, clearLocks } = await import("../src/order-lock.js");
+  const [key] = commandArgs;
+  if (!key) {
+    const locks = await readLocks().catch((error) => { console.error("❌ " + error.message); process.exit(1); });
+    if (!Object.keys(locks).length) { console.log("No order locks."); return; }
+    console.log(JSON.stringify(locks, null, 2));
+    console.log("Clear one with: npm run unlock -- <key>   or all with: npm run unlock -- all");
+    return;
+  }
+  const cleared = await clearLocks(key);
+  console.log(cleared.length ? `Cleared: ${cleared.join(", ")}` : `No lock named "${key}".`);
+}
+
+// -----------------------------------------------------------------------------
+const commands = { login, open, trade, review, log, journal, unlock };
 if (!commands[command]) {
   console.error(`Unknown command: ${command ?? "(none)"}. Available: ${Object.keys(commands).join(" / ")}`);
   process.exit(1);

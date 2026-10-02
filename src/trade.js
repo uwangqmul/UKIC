@@ -19,8 +19,32 @@ import { ORIGIN, PROFILE_URL, SELECTORS as S } from "./site.js";
 const SUFFIX = /\b(inc|incorporated|corp|corporation|co|company|ltd|limited|plc|ag|sa|se|nv|holdings?|group|class [a-z])\b\.?/gi;
 /** Normalise a company name: lower case, no punctuation, no Inc/Corp-style suffixes. */
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[.,]/g, " ").replace(SUFFIX, " ").replace(/\s+/g, " ").trim();
+/** Lower case with single spaces: for comparing a typed name with a displayed one exactly (share class kept). */
+const exact = (s) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 /** Extract the number from text such as "USD 1,082.28"; returns null if there is none. */
 const num = (s) => { const n = Number(String(s ?? "").replace(/[^0-9.\-]/g, "")); return Number.isFinite(n) ? n : null; };
+
+/** Escape text for use inside a RegExp. */
+const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Slug of an equity page address (the part after /equity/, e.g. aapl-apple): a stable key for a stock; null if there is none. */
+export function equitySlug(href) {
+  const m = /\/equity\/([^/?#]+)/i.exec(String(href ?? ""));
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * A company given directly as an equity page address (https://umushroom.com/en/equity/<slug> or /en/equity/<slug>): the full URL, else null.
+ * The slug must be plain (letters, digits, "-", "_", "." and not starting with "."), so an address can neither leave /en/equity/
+ * (".." / "\" / %-escapes) nor spell the same stock differently to get around its order lock.
+ */
+function directEquityUrl(company) {
+  const m = /^(?:https:\/\/umushroom\.com)?\/en\/equity\/([a-z0-9][a-z0-9._-]*)\/?$/i.exec(String(company ?? "").trim());
+  return m ? `${ORIGIN}/en/equity/${m[1]}` : null;
+}
+
+/** "Name (TICKER)" list of search candidates for error messages. */
+const describe = (list) => list.map((e) => `${e.name} (${e.ticker})`).join(", ");
 
 /** Validate order parameters: exactly one of shares or amount, and it must be greater than 0 (sell also accepts "all"). */
 function checkOrder({ shares, amount }) {
@@ -34,11 +58,15 @@ function checkOrder({ shares, amount }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Find the security page of a company with the site search. company can be a name (Apple) or a ticker (AAPL).
- * Only Equity results count; match priority: exact ticker > same name > name starts with it > shortest name.
- * If the name is ambiguous (e.g. "App") and matches several equities, throw and ask for the ticker.
+ * Find the security page of a company with the site search. company can be a name (Apple), a ticker (AAPL)
+ * or the equity page address itself (https://umushroom.com/en/equity/aapl-apple), which skips the search.
+ * Only Equity results count; match priority: exact ticker > same name > name starts with it.
+ * Throws instead of guessing when no result matches (e.g. a typo or an alias such as "Google") or when
+ * several different equities match equally well (e.g. "Alphabet": Class A and Class C); use the ticker or address then.
  */
 export async function findEquity(page, company) {
+  const direct = directEquityUrl(company);
+  if (direct) return { name: "", ticker: "", href: new URL(direct).pathname, url: direct, alternatives: [] };
   // Below roughly 1280px window width (e.g. side by side with the journal) the top search box is hidden, so use the site's Ctrl+K shortcut.
   const trigger = page.locator(S.searchTrigger).first();
   if (await trigger.isVisible().catch(() => false)) await trigger.click();
@@ -61,19 +89,48 @@ export async function findEquity(page, company) {
   const q = norm(company);
   const scored = equities.map((c) => ({
     ...c,
-    score: c.ticker.toLowerCase() === company.toLowerCase() ? 3 : norm(c.name) === q ? 2 : norm(c.name).startsWith(q + " ") ? 1 : 0,
+    // 4: exact displayed name, share class included ("Alphabet Inc Class A"), so it is never mistaken for another class
+    score: c.ticker.toLowerCase() === company.toLowerCase() ? 3 : exact(c.name) === exact(company) ? 4 : norm(c.name) === q ? 2 : norm(c.name).startsWith(q + " ") ? 1 : 0,
   })).sort((a, b) => b.score - a.score || a.name.length - b.name.length);
   const best = scored[0];
-  if (best.score === 0 && equities.length > 1) {
-    throw new Error(`"${company}" matches several equities, please use the ticker: ` + equities.map((e) => `${e.name} (${e.ticker})`).join(", "));
+  // No ticker or name match: never take a search result that merely resembles the text (a single fuzzy hit used to be accepted)
+  if (best.score === 0) {
+    throw new Error(`"${company}" does not match any equity by ticker or name, please use the ticker. Search results: ` + describe(equities));
+  }
+  // Several different equities match equally well: refuse rather than silently pick the one with the shortest name
+  // (an exact ticker (3) and an exact full name (4) count as equally good)
+  const level = (score) => Math.min(score, 3);
+  const tied = scored.filter((c) => level(c.score) === level(best.score) && c.href !== best.href);
+  if (tied.length) {
+    throw new Error(`"${company}" matches several equities equally well, please use the ticker or the equity page address: ` +
+      [best, ...tied].map((e) => `${e.name} (${e.ticker}) ${ORIGIN}${e.href}`).join(", "));
   }
   return { ...best, url: ORIGIN + best.href, alternatives: scored.slice(1).map(({ name, ticker }) => `${name} (${ticker})`) };
 }
 
+/**
+ * Check that the buy popup is for the equity that was chosen, so a page that shows another security is never ordered.
+ * Passes when the names are the same (ignoring punctuation and Inc/Corp-style suffixes) or the popup shows the ticker.
+ * Deliberately strict: a name that merely contains the chosen one ("Apple Hospitality REIT Inc" vs "Apple Inc") is refused.
+ * Skipped when either name is unknown.
+ */
+function checkInstrument(preview, equity) {
+  const plain = (s) => norm(s).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const shown = plain(preview.instrument);
+  const expected = plain(equity.name);
+  if (!shown || !expected || shown === expected) return;
+  if (equity.ticker && new RegExp(`\\b${escapeRe(equity.ticker)}\\b`, "i").test(preview.instrument)) return;
+  throw new Error(`The order form shows "${preview.instrument}" but "${equity.name}${equity.ticker ? ` (${equity.ticker})` : ""}" was chosen; nothing was submitted.`);
+}
+
 /** Read the current values of a trade popup (price, shares, amount, weight, available cash, notices and errors). */
 async function readPopup(popup) {
-  const text = async (sel) => (await popup.locator(sel).first().textContent().catch(() => ""))?.trim() ?? "";
-  const val = async (sel) => popup.locator(sel).first().inputValue().catch(() => "");
+  // Fields missing from a form (e.g. the portfolio drop-down in the sell popup) read as "" after at most 1 s instead of
+  // waiting the full action timeout (8 s) for each one; the sell flow reads the popup several times, so this used to add 8 s+ per read.
+  // Fields that render a moment late are still waited for (up to 1 s).
+  const present = (sel) => popup.locator(sel).first().waitFor({ state: "attached", timeout: 1_000 }).then(() => true, () => false);
+  const text = async (sel) => (await present(sel)) ? ((await popup.locator(sel).first().textContent().catch(() => ""))?.trim() ?? "") : "";
+  const val = async (sel) => (await present(sel)) ? popup.locator(sel).first().inputValue().catch(() => "") : "";
   const metrics = await popup.locator(".trade-metric").evaluateAll((els) =>
     Object.fromEntries(els.map((e) => [e.querySelector("span")?.childNodes[0]?.textContent.trim(), e.querySelector("strong")?.textContent.trim()])));
   return {
@@ -94,7 +151,7 @@ async function fillOrder(popup, { shares, amount }) {
   const target = popup.locator(shares != null ? S.sharesInput : S.amountInput).first();
   // The site only recalculates amount/weight on real key presses (fill() does not trigger it), so type character by character.
   await target.click();
-  await target.press("Control+A");
+  await target.press("ControlOrMeta+A");
   await target.press("Backspace");
   await target.pressSequentially(String(shares ?? amount), { delay: 60 });
   await target.press("Tab");
@@ -125,29 +182,68 @@ async function choosePortfolio(popup, portfolio, portfolioIndex) {
   return (await select.locator(".portfolio-select-value").textContent()).trim();
 }
 
-/** Click the final Add / Sell button and wait for the site to confirm success (returns the confirmation text). */
-async function submitAndConfirm(page, popup) {
+/**
+ * Click the final Add / Sell button and wait for the site to confirm success.
+ * Returns { messages, confirmation }: confirmation is "order_placed" (the "Order placed" + Done screen appeared)
+ * or "popup_closed" (the popup closed by itself).
+ * order = { key, side, stock, portfolio, shares, amount } is used by guard (see order-lock.js): the stock is locked right
+ * before the click and unlocked once the site confirms. If there is no confirmation after the click, the order MAY have been
+ * placed: the lock is kept and an error with code ORDER_UNCONFIRMED is thrown, so the caller must not simply retry.
+ */
+async function submitAndConfirm(page, popup, order, guard) {
   const button = popup.locator(S.submit).first();
   if (await button.isDisabled()) throw new Error("The submit button is disabled: check the shares, amount or available cash.");
-  await button.click();
-  // After a successful submit the popup either closes or switches to an "Order placed" + Done confirmation.
-  const done = popup.getByRole("button", { name: /^done$/i });
-  const outcome = await Promise.race([
-    popup.waitFor({ state: "hidden", timeout: 20_000 }).then(() => "closed"),
-    done.waitFor({ state: "visible", timeout: 20_000 }).then(() => "confirmed"),
-  ]).catch(() => "timeout");
-  if (outcome === "timeout") {
-    const text = (await popup.innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 300);
-    throw new Error("No success confirmation within 20 seconds of submitting; please check the order status on the page. Popup text: " + text);
+  await guard?.beginOrder(order);
+  let outcome;
+  try {
+    // A click that throws is treated as unconfirmed too: Playwright can fail after dispatching the click
+    // (e.g. while waiting for a navigation it started), so the order may exist. A lock too many is safe; one too few is not.
+    await button.click();
+    // After a successful submit the popup either closes or switches to an "Order placed" + Done confirmation.
+    const done = popup.getByRole("button", { name: /^done$/i });
+    outcome = await Promise.race([
+      popup.waitFor({ state: "hidden", timeout: 20_000 }).then(() => "closed"),
+      done.waitFor({ state: "visible", timeout: 20_000 }).then(() => "confirmed"),
+    ]).catch(() => "timeout");
+    if (outcome === "timeout") {
+      const text = (await popup.innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 300);
+      throw new Error("No success confirmation within 20 seconds of submitting. Popup text: " + text);
+    }
+  } catch (error) {
+    // The click happened but success could not be confirmed: the order may or may not exist on UMushroom
+    const reason = String(error.message).split(/\r?\n/)[0];
+    await guard?.markUnconfirmed(order.key, reason).catch(() => {});
+    throw Object.assign(new Error(
+      `The ${order.side} of ${order.stock} was submitted but UMushroom did not confirm it (${reason}). ` +
+      "The order MAY have been placed: do not retry. Check Pending Orders / History of the portfolio on UMushroom." +
+      (guard ? ` New orders for this stock stay blocked until then; clear with: npm run unlock -- ${order.key}` : "")),
+    { code: "ORDER_UNCONFIRMED" });
   }
+  // The site confirmed the order: unlock first, so a hiccup while reading the message or clicking Done
+  // can never turn a confirmed order into an "unconfirmed" one.
+  // (If removing the lock fails, the stock just stays locked: never report a confirmed order as an error that invites a retry.)
+  await guard?.finishOrder(order.key).catch(() => {});
   const messages = [];
   if (outcome === "confirmed") {
-    messages.push((await popup.innerText()).replace(/\s+/g, " ").trim());
-    await done.click();
+    const done = popup.getByRole("button", { name: /^done$/i });
+    messages.push((await popup.innerText().catch(() => "")).replace(/\s+/g, " ").trim());
+    await done.click().catch(() => {});
     await popup.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
   }
   const toast = await page.locator('.toast, .notification, [role="status"], [role="alert"]').allTextContents().catch(() => []);
-  return messages.concat(toast.map((t) => t.trim()).filter(Boolean).slice(0, 3));
+  return { messages: messages.concat(toast.map((t) => t.trim()).filter(Boolean).slice(0, 3)), confirmation: outcome === "confirmed" ? "order_placed" : "popup_closed" };
+}
+
+/** Submit through submitAndConfirm and store the outcome in result; an unconfirmed order is marked submitted: "unknown". */
+async function submitInto(result, page, popup, order, guard) {
+  try {
+    const { messages, confirmation } = await submitAndConfirm(page, popup, order, guard);
+    Object.assign(result, { messages, confirmation, submitted: true });
+    return result;
+  } catch (error) {
+    if (error.code === "ORDER_UNCONFIRMED") { result.submitted = "unknown"; error.result = result; }
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -157,13 +253,22 @@ async function submitAndConfirm(page, popup) {
 /**
  * Buy: add shares of a company to the given portfolio.
  * Flow: search the company -> security page "Add to portfolio" -> choose portfolio -> shares or amount -> (when submit) Add.
- * Returns { action, company, equity, portfolio, preview, submitted, messages? }.
+ * Returns { action, company, equity, portfolio, preview, submitted, messages?, confirmation? }.
+ * guard (optional, see order-lock.js) blocks a submit while an earlier order for the same stock is unconfirmed.
  */
-export async function buyStock(page, { company, portfolio, portfolioIndex, shares, amount, submit = false }) {
+export async function buyStock(page, { company, portfolio, portfolioIndex, shares, amount, submit = false, guard }) {
   checkOrder({ shares, amount });
   if (shares === "all") throw new Error("Buying does not support shares=all.");
   const equity = await findEquity(page, company);
+  let key = equitySlug(equity.url);
+  if (submit && guard) await guard.assertUnlocked(key); // fail fast, before filling in the form
   await page.goto(equity.url, { waitUntil: "domcontentloaded", timeout: TIMEOUTS.navigation });
+  // The lock key is the page actually opened: if the site redirected (e.g. an old or alias address), use and check the final one
+  const opened = equitySlug(page.url());
+  if (opened && opened !== key) {
+    key = opened;
+    if (submit && guard) await guard.assertUnlocked(key);
+  }
   await page.locator(S.addToPortfolio).first().click({ timeout: 20_000 });
   const popup = page.locator(S.buyPopup).first();
   await popup.waitFor({ state: "visible" });
@@ -171,12 +276,16 @@ export async function buyStock(page, { company, portfolio, portfolioIndex, share
   const chosen = await choosePortfolio(popup, portfolio, portfolioIndex);
   await fillOrder(popup, { shares, amount });
   const preview = await readPopup(popup);
+  if (!equity.name) equity.name = preview.instrument; // opened by address: take the name from the order form
   const result = { action: "buy", company, equity: { name: equity.name, ticker: equity.ticker, url: equity.url, alternatives: equity.alternatives }, portfolio: chosen, preview, submitted: false };
   if (preview.errors.length) throw Object.assign(new Error("The form reports: " + preview.errors.join("; ")), { result });
+  try { checkInstrument(preview, equity); } catch (error) {
+    await popup.locator(S.popupClose).first().click().catch(() => {});
+    throw Object.assign(error, { result });
+  }
   if (!submit) { await popup.locator(S.popupClose).first().click().catch(() => {}); return result; }
-  result.messages = await submitAndConfirm(page, popup);
-  result.submitted = true;
-  return result;
+  const order = { key, side: "buy", stock: equity.ticker ? `${equity.name} (${equity.ticker})` : equity.name, portfolio: chosen, shares: preview.shares, amount: preview.estimatedAmount };
+  return submitInto(result, page, popup, order, guard);
 }
 
 /**
@@ -207,15 +316,47 @@ export async function resolvePortfolioUrl(page, portfolio, portfolioIndex) {
   const matches = all.filter((c) => c.name.toLowerCase() === portfolio.toLowerCase());
   if (!matches.length) throw new Error(`Portfolio "${portfolio}" was not found on My profile. Found: ${all.map((c) => c.name).join(", ")}`);
   if (matches.length > 1 && portfolioIndex == null) throw new Error(`${matches.length} portfolios are named "${portfolio}"; use portfolioIndex to pick one.`);
-  return ORIGIN + matches[(portfolioIndex ?? 1) - 1].href;
+  const match = matches[(portfolioIndex ?? 1) - 1];
+  // An index larger than the number of same-named portfolios used to crash with a TypeError
+  if (!match) throw new Error(`portfolioIndex is out of range (there are ${matches.length} portfolios named "${portfolio}").`);
+  return ORIGIN + match.href;
+}
+
+/**
+ * Pick the holding to sell. Priority: exact displayed name (share class included) > same name ignoring Inc/Corp/Class >
+ * ticker at the start of the equity address (aapl-...) > name starts with it; an equity page address matches that holding directly.
+ * Throws when nothing matches, or when several different holdings match equally well (e.g. "Alphabet" with both
+ * Class A and Class C held) instead of selling whichever row comes first.
+ */
+function matchHolding(holdings, company) {
+  const q = norm(company);
+  const slug = equitySlug(directEquityUrl(company));
+  const lower = String(company).trim().toLowerCase();
+  const tiers = slug
+    ? [(h) => equitySlug(h.href) === slug]
+    : [(h) => exact(h.name) === exact(company),
+      (h) => norm(h.name) === q,
+      (h) => equitySlug(h.href)?.startsWith(`${lower}-`),
+      (h) => norm(h.name).startsWith(q + " ")];
+  for (const test of tiers) {
+    const found = holdings.map((h, index) => ({ ...h, index })).filter((h) => h.name && test(h));
+    const distinct = new Set(found.map((h) => h.href || h.name));
+    if (distinct.size > 1) {
+      throw new Error(`"${company}" matches several holdings, please use the ticker or the equity page address: ` +
+        found.map((h) => `${h.name} ${h.shares} ${h.href ? ORIGIN + h.href : ""}`.trim()).join(", "));
+    }
+    if (found.length) return found[0].index;
+  }
+  return -1;
 }
 
 /**
  * Sell: sell a company's holding in the given portfolio. shares may be "all" (sell everything).
  * Flow: open the portfolio -> All tab under Investments -> holding row Sell -> shares -> (when submit) Sell.
  * Shares bought while the market is closed stay in Pending Orders and cannot be sold yet.
+ * guard (optional, see order-lock.js) blocks a submit while an earlier order for the same stock is unconfirmed.
  */
-export async function sellStock(page, { company, portfolio, portfolioIndex, shares, amount, submit = false }) {
+export async function sellStock(page, { company, portfolio, portfolioIndex, shares, amount, submit = false, guard }) {
   checkOrder({ shares, amount });
   if (!portfolio) throw new Error("Selling requires a portfolio (name or URL).");
   const url = await resolvePortfolioUrl(page, portfolio, portfolioIndex);
@@ -229,19 +370,32 @@ export async function sellStock(page, { company, portfolio, portfolioIndex, shar
   }
   const rows = page.locator(S.holdingRow);
   await rows.first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
-  const holdings = await rows.evaluateAll((els) => els.map((r) => ({
+  const readHoldings = () => rows.evaluateAll((els) => els.map((r) => ({
     name: r.querySelector("h5.title")?.textContent.trim(),
-    href: r.querySelector('a[href*="/equity/"], a[href]')?.getAttribute("href"),
+    // Prefer the stock's own link (a comma selector would return whichever link comes first in the row)
+    href: (r.querySelector('a[href*="/equity/"]') ?? r.querySelector("a[href]"))?.getAttribute("href"),
     shares: r.querySelector(".shares span")?.textContent.trim(),
   })));
-  const q = norm(company);
-  const index = holdings.findIndex((h) => norm(h.name) === q || norm(h.name).startsWith(q + " ") ||
-    h.href?.toLowerCase().includes(`/${company.toLowerCase()}-`));
+  // Long holding lists are collapsed behind "See All": expand them (as the journal snapshot does), otherwise holdings further
+  // down cannot be found, and an ambiguous name (e.g. Class A visible, Class C hidden) could not be noticed
+  const expand = page.locator(S.expandHoldings);
+  let expanded = false;
+  for (let i = await expand.count() - 1; i >= 0; i -= 1) {
+    if (await expand.nth(i).isVisible().catch(() => false)) { await expand.nth(i).click().catch(() => {}); expanded = true; }
+  }
+  if (expanded) await page.waitForTimeout(800);
+  const holdings = await readHoldings();
+  const index = matchHolding(holdings, company);
   if (index < 0) {
     throw new Error(`The portfolio has no "${company}" holding (if the order was just placed while the market is closed it may still be pending). Current holdings: ` +
-      (holdings.map((h) => `${h.name} ${h.shares}`).join(", ") || "none"));
+      (holdings.filter((h) => h.name).map((h) => `${h.name} ${h.shares}`).join(", ") || "none"));
   }
-  await rows.nth(index).locator(S.holdingSell).click();
+  const key = equitySlug(holdings[index].href) ?? `name-${norm(holdings[index].name).replace(/\s+/g, "-")}`;
+  if (submit && guard) await guard.assertUnlocked(key); // fail fast, before opening the sell form
+  // Click Sell on the row that holds this stock's link, not on "row number index", in case the list changed since it was read
+  const href = holdings[index].href;
+  const row = href && !/["\\]/.test(href) ? rows.filter({ has: page.locator(`a[href="${href}"]`) }).first() : rows.nth(index);
+  await row.locator(S.holdingSell).click();
   const popup = page.locator(S.sellPopup).first();
   await popup.waitFor({ state: "visible" });
   // The available shares load a moment after the popup opens; poll until a non-zero value appears (up to about 6 seconds).
@@ -250,17 +404,28 @@ export async function sellStock(page, { company, portfolio, portfolioIndex, shar
     available = num((await readPopup(popup)).metrics["Available shares"]) ?? 0;
     if (!(available > 0)) await page.waitForTimeout(500);
   }
+  const closePopup = () => popup.locator(S.popupClose).first().click().catch(() => {});
+  if (!(available > 0)) {
+    // "all" used to become 0 shares here; a holding with nothing available cannot be sold at all
+    await closePopup();
+    throw new Error(`No shares of ${holdings[index].name} are available to sell (the available amount did not load, or the shares are still pending).`);
+  }
   if (shares === "all") shares = available;
-  if (shares != null && available != null && Number(shares) > available) {
-    await popup.locator(S.popupClose).first().click().catch(() => {});
+  if (shares != null && Number(shares) > available) {
+    await closePopup();
     throw new Error(`You can sell at most ${available} shares.`);
   }
   await fillOrder(popup, { shares, amount });
   const preview = await readPopup(popup);
   const result = { action: "sell", company, holding: holdings[index], portfolioUrl: url, preview, submitted: false };
   if (preview.errors.length) throw Object.assign(new Error("The form reports: " + preview.errors.join("; ")), { result });
-  if (!submit) { await popup.locator(S.popupClose).first().click().catch(() => {}); return result; }
-  result.messages = await submitAndConfirm(page, popup);
-  result.submitted = true;
-  return result;
+  // An amount is converted to shares by the site; check that against the holding too (only shares were checked before).
+  // A tiny excess from the site's rounding (e.g. 10.0003 of 10) is left to the site's own validation.
+  if (amount != null && preview.shares != null && preview.shares - available > 0.001) {
+    await closePopup();
+    throw Object.assign(new Error(`The amount ${amount} is ${preview.shares} shares, but you can sell at most ${available} shares.`), { result });
+  }
+  if (!submit) { await closePopup(); return result; }
+  const order = { key, side: "sell", stock: holdings[index].name, portfolio: url, shares: preview.shares, amount: preview.estimatedAmount };
+  return submitInto(result, page, popup, order, guard);
 }
