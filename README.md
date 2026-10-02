@@ -99,7 +99,7 @@ Arguments:
 | Argument | Meaning |
 |---|---|
 | `buy` / `sell` | buy more / sell |
-| company | ticker (`AAPL`, `MSFT`, recommended), company name (`Apple`) or the stock's page address (`https://umushroom.com/en/equity/aapl-apple`, skips the search) |
+| company | ticker (`AAPL`, `MSFT`, recommended), company name (`Apple`), ISIN (`FR0013416716`) or the page address of a stock or ETF (`https://umushroom.com/en/equity/aapl-apple`, `https://umushroom.com/en/etf/amundi-physical-gold-etc-c-2`; skips the search). Stocks and ETFs/ETCs can be traded; Funds cannot |
 | `--portfolio` | portfolio name, e.g. `"First Portfolio"`; optional for buying (uses the default portfolio), required for selling |
 | `--portfolio-index` | which one to use when several portfolios share a name (starting at 1), e.g. two `"My portfolio"`s |
 | `--shares` | number of shares; `all` is allowed when selling |
@@ -134,7 +134,7 @@ Add the MCP server to your client's config (see "Connecting MCP clients" below),
 | Asked to sign in | Run `npm run login` again and sign in |
 | Google says "This browser or app may not be secure" | Don't sign in inside an automated window; use `npm run login` instead |
 | Error about portfolios with the same name | Add `--portfolio-index 1` or `2` |
-| "does not match any equity" / "matches several equities" | The name was a typo, an alias ("Google") or ambiguous ("Alphabet" = Class A and C); use the ticker or the stock's page address |
+| "does not match any equity" / "matches several equities" | The name was a typo, an alias ("Google") or ambiguous ("Alphabet" = Class A and C; ETFs that share a ticker such as `GOLD`); use the ticker, the ISIN or the page address |
 | "Not submitted: the earlier … was never confirmed" | See "Order safety" below |
 
 ## Order safety

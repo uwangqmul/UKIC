@@ -1,5 +1,5 @@
 // Real-site buy test (skipped by default). Opens UMushroom with the logged-in project Chrome
-// and runs the buy flow for Apple. Preview only by default; set UMUSHROOM_LIVE_SUBMIT=1 to really buy in the paper portfolio.
+// and runs the buy flow for Apple, plus a preview-only ETF buy (Amundi Physical Gold ETC). Apple is preview only by default; set UMUSHROOM_LIVE_SUBMIT=1 to really buy in the paper portfolio.
 // Run (PowerShell):
 //   $env:UMUSHROOM_LIVE='1'; npm run test:live
 //   $env:UMUSHROOM_LIVE='1'; $env:UMUSHROOM_LIVE_SUBMIT='1'; npm run test:live
@@ -30,4 +30,19 @@ test(`real site: buy 1 share of Apple in ${PORTFOLIO} (${SUBMIT ? "submit" : "pr
   assert.deepEqual(r.preview.errors, []);
   assert.equal(r.submitted, SUBMIT);
   if (SUBMIT) assert.ok(r.messages.some((m) => /order placed/i.test(m)), "Order placed should be shown after submitting");
+});
+
+// ETF buy form (preview only, never submitted): checks that the search finds an ETF by ISIN and that the
+// "Number of units" form is read like the stock form.
+test(`real site: preview 1 unit of Amundi Physical Gold ETC by ISIN in ${PORTFOLIO} (preview only)`, { skip: !LIVE && "set UMUSHROOM_LIVE=1 to run", timeout: 180_000 }, async () => {
+  const mod = await import("../src/umushroom.js");
+  closeUmushroom = mod.closeUmushroom;
+  const r = await mod.tradeUmushroom("buy", { company: "FR0013416716", portfolio: PORTFOLIO, shares: 1, submit: false });
+  console.log(JSON.stringify(r, null, 2));
+  assert.match(r.equity.url, /\/en\/etf\//);
+  assert.match(r.preview.instrument, /Amundi Physical Gold/i);
+  assert.equal(r.preview.shares, 1, "the number of units should be read");
+  assert.ok(Number(r.preview.marketPrice.replace(/[^0-9.]/g, "")) > 0, "the market price should be read");
+  assert.deepEqual(r.preview.errors, []);
+  assert.equal(r.submitted, false);
 });

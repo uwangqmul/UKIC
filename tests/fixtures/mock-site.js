@@ -2,7 +2,7 @@
 // Mock UMushroom site for tests (modelled on the real page structure verified on 2026-09-27)
 // -----------------------------------------------------------------------------
 // routeMockSite(context) intercepts requests to https://umushroom.com and serves these pages:
-//   /en/equity/<slug>                       security page (with the Add to portfolio buy popup)
+//   /en/equity/<slug>, /en/etf/<slug>       security page (with the Add to portfolio buy popup)
 //   /en/my-profile                          portfolio list
 //   /en/profile/you-wang/portfolio/first-portfolio   portfolio page (summary, holdings, pending orders, History)
 //   /api/orders                             mock order endpoint (recorded in the orders array)
@@ -20,6 +20,11 @@ export const EQUITIES = [
   { name: "Alphabet Inc Class A", ticker: "GOOGL", slug: "googl-alphabet-class-a", price: 250 },
   { name: "Alphabet Inc Class C", ticker: "GOOG", slug: "goog-alphabet-class-c", price: 251 },
 ];
+// ETFs/ETCs as the real site lists them: two share the ticker GOLD (only the ISIN tells them apart); /en/etf/ pages
+export const ETFS = [
+  { name: "Amundi Physical Gold ETC C", ticker: "GOLD", isin: "FR0013416716", slug: "amundi-physical-gold-etc-c-2", price: 164.44 },
+  { name: "EUWAX Gold", ticker: "GOLD", isin: "DE000EWG0LD1", slug: "euwax-gold", price: 120 },
+];
 export const SELL_PORTFOLIO_PATH = "/en/profile/you-wang/portfolio/second-portfolio";
 export const PORTFOLIOS = ["First Portfolio", "Second portfolio", "My portfolio", "My portfolio"];
 
@@ -28,18 +33,22 @@ export const PORTFOLIOS = ["First Portfolio", "Second portfolio", "My portfolio"
 const SEARCH_HTML = `<header><button class="search-modal-trigger">Search</button></header>`;
 const SEARCH_MODAL = `<div id="search-modal" hidden><input placeholder="Search"><div class="results"></div></div>`;
 const SEARCH_SCRIPT = `
-const EQUITIES = ${JSON.stringify(EQUITIES)};
+const EQUITIES = ${JSON.stringify(EQUITIES)}, ETFS = ${JSON.stringify(ETFS)};
 const modal = document.getElementById("search-modal");
 document.querySelector(".search-modal-trigger").onclick = () => { modal.hidden = false; modal.querySelector("input").focus(); };
 modal.querySelector("input").addEventListener("input", (e) => {
   const q = e.target.value.toLowerCase();
   // The real site mixes portfolios, users and securities in the results; one Portfolio result is mixed in here too
+  // A gold Fund is mixed in too: Funds are not bought (only Equity and ETF results count)
   const items = [{ name: "Apple", type: "Portfolio", href: "/en/profile/x/portfolio/apple" },
-    ...EQUITIES.map((x) => ({ name: x.name, ticker: x.ticker, type: "Equity", href: "/en/equity/" + x.slug }))]
-    .filter((x) => x.name.toLowerCase().includes(q) || (x.ticker || "").toLowerCase() === q);
+    ...EQUITIES.map((x) => ({ name: x.name, ticker: x.ticker, type: "Equity", href: "/en/equity/" + x.slug })),
+    ...ETFS.map((x) => ({ name: x.name, ticker: x.ticker, isin: x.isin, type: "ETF", href: "/en/etf/" + x.slug })),
+    { name: "Gold & Sicherheit (Euro) I", isin: "DE000A40J7G4", type: "Fund", href: "/en/fund/gold-sicherheit-euro-i" }]
+    .filter((x) => x.name.toLowerCase().includes(q) || (x.ticker || "").toLowerCase() === q || (x.isin || "").toLowerCase() === q);
   modal.querySelector(".results").innerHTML = items.map((x) =>
     '<a class="suggestion" role="option" href="' + x.href + '"><span class="name">' + x.name +
-    (x.ticker ? ' <small>| ' + x.ticker + '</small>' : '') + '</span><span class="type">' + x.type + '</span></a>').join("");
+    (x.ticker ? ' <small>| ' + x.ticker + '</small>' : '') + '</span>' + (x.isin ? '<span class="isin">' + x.isin + '</span>' : '') +
+    '<span class="type">' + x.type + '</span></a>').join("");
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") modal.hidden = true;
@@ -203,14 +212,16 @@ export const portfolioPage = withSearch(`<!doctype html><html><body><div class="
 </script></div></body></html>`);
 
 // ---------- Second portfolio: holdings with Sell buttons and the sell popup (used by the sell tests) ----------
-// Holdings: two Alphabet share classes (ambiguous name), Tesla with 0 shares available, and Micron hidden behind "See All".
+// Holdings: two Alphabet share classes (ambiguous name), Tesla with 0 shares available, a gold ETC (/en/etf/, counted in units)
+// and Micron hidden behind "See All".
 export const SELL_HOLDINGS = [
   { name: "Alphabet Inc Class A", ticker: "GOOGL", slug: "googl-alphabet-class-a", shares: 10, available: 10, price: 250 },
   { name: "Alphabet Inc Class C", ticker: "GOOG", slug: "goog-alphabet-class-c", shares: 5, available: 5, price: 251 },
   { name: "Tesla Inc", ticker: "TSLA", slug: "tsla-tesla", shares: 3, available: 0, price: 400 },
+  { name: "Amundi Physical Gold ETC C", ticker: "GOLD", slug: "amundi-physical-gold-etc-c-2", type: "etf", shares: 4, available: 4, price: 164.44 },
   { name: "Micron Technology Inc", ticker: "MU", slug: "mu-micron-technology", shares: 20, available: 20, price: 100, collapsed: true },
 ];
-const sellRow = (h, i) => row({ name: h.name, href: `/en/equity/${h.slug}`, body:
+const sellRow = (h, i) => row({ name: h.name, href: `/en/${h.type ?? "equity"}/${h.slug}`, body:
   cell("price", "Price", `USD ${h.price}`) + `<div class="shares info-cell"><span>${h.shares}</span></div>` +
   `<button class="action-icon-btn sell" data-i="${i}">Sell</button>` });
 
@@ -257,6 +268,7 @@ export const sellPortfolioPage = withSearch(`<!doctype html><html><body><div cla
     q(".trade-overview h5").textContent = current.name;
     q(".trade-summary strong").textContent = "USD " + current.price;
     q(".trade-metric strong").textContent = "";
+    q(".trade-metric span").textContent = current.type === "etf" ? "Available units" : "Available shares";
     setTimeout(() => { q(".trade-metric strong").textContent = String(current.available); }, 300); // loads a moment later
     q(".security-trade").hidden = false; q(".success").hidden = true; sellPopup.hidden = false;
   });
@@ -281,7 +293,7 @@ export async function routeMockSite(context, orders = []) {
       orders.push(JSON.parse(route.request().postData()));
       return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
     }
-    const eq = EQUITIES.find((x) => url.pathname === `/en/equity/${x.slug}`);
+    const eq = EQUITIES.find((x) => url.pathname === `/en/equity/${x.slug}`) ?? ETFS.find((x) => url.pathname === `/en/etf/${x.slug}`);
     const body = eq ? equityPage(eq)
       : url.pathname === PORTFOLIO_PATH ? portfolioPage
       : url.pathname === SELL_PORTFOLIO_PATH ? sellPortfolioPage
