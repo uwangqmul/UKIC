@@ -19,7 +19,7 @@ Related files:
 
 - **Practice:** 5–11 Oct 2026. The agent watches the news and records what it *would* have done. **Competition:** from **12 Oct 2026**.
 - **Portfolio:** a **separate portfolio with 100,000 GBP**. The base currency is GBP; most assets are priced in USD, so the GBP/USD rate also moves the value.
-- **Scoring:** about **50% returns** and **50% completing daily activities**. Do not trade wildly for returns: steady, deliberate trades are enough.
+- **Scoring:** about **50% returns** and **50% completing daily activities**. The **daily activities are done manually by the team, not by the agent**: the agent only manages the portfolio. Since returns are only half the score, steady, deliberate trades beat wild bets.
 - **Order timing:** an order placed while the market is closed waits and **fills at the next open**. Most scheduled news (results) comes out after the close or before the open, so for those **interpreting the news correctly matters more than speed**. Seconds matter only for news during trading hours (policy, scoops, outages).
 - **Reactions can reverse.** For example, Cisco rose 8% after hours on 12 Aug 2026 and closed **−8.9%** the next day. Do not chase the first after-hours move.
 
@@ -171,7 +171,6 @@ Yahoo Finance and Google News feeds, Seeking Alpha, Motley Fool: late, mostly re
 
 ## 8. Still open
 
-- **Daily activities** (half the score): not yet known what they are. If they require trading every day, use small, deliberate rebalancing trades, not random churn.
 - **Alpaca free tier:** that it still includes the live news stream in 2026 is unconfirmed; step 4 above confirms it.
 - **SEC access** could not be tested from the research machine (its DNS could not resolve sec.gov); step 4 above tests it.
 - Dates marked ? above will be announced by the companies during October.
