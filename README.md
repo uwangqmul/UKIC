@@ -29,15 +29,21 @@ With_Nick/
 │  └─ server.js          MCP server, registers 10 tools
 ├─ web/
 │  └─ journal.html       journal page
+├─ docs/
+│  ├─ AGENT_GUIDE.md     guide for the trading agent: the 40 assets, portfolio rules, news sources, calendar
+│  ├─ news-sources.json  machine-readable asset and news-source list (UMushroom identifier, SEC CIK, feeds)
+│  └─ news-sources.pdf   the same research as a readable document
 ├─ scripts/
 │  ├─ cli.js             command line: login / open / trade / review / log / journal / unlock
+│  ├─ check-feeds.js     checks every news source in docs/news-sources.json from this machine
 │  ├─ inspect.js         starts the MCP Inspector
 │  └─ explore.js         page-exploration helper (for development)
 └─ tests/
    ├─ buy.test.js        buy tests (local mock pages)
    ├─ journal.test.js    journal mode tests (local mock pages)
    ├─ autolog.test.js    journal service tests: adjusting portfolios from the page, hourly updates, API security
-   ├─ order-safety.test.js  strict stock matching, order locks, selling (local mock pages)
+   ├─ order-safety.test.js  strict stock matching, order locks, selling, ETFs (local mock pages)
+   ├─ check-feeds.test.js   news-source list and feed checker (local server only)
    ├─ trade-queue.test.js   parallel trades run one at a time; pending orders recorded in the journal
    ├─ fixtures/mock-site.js  UMushroom mock site shared by the tests
    ├─ live-buy.test.js   buy test against the real site (skipped by default)
@@ -322,6 +328,18 @@ npm test
 ### Order-safety and queue tests (local mock, never touches the real site)
 
 `tests\order-safety.test.js` covers the strict stock matching, order locks (unconfirmed orders, stopped processes, clearing), and selling (share classes, holdings behind "See All", sell all, limits). `tests\trade-queue.test.js` checks that parallel trades through the MCP / command-line entry point run one at a time and that pending orders are recorded in the journal. Both run as part of `npm test`.
+
+### News-source list and feed checker
+
+`tests\check-feeds.test.js` checks that `docs\news-sources.json` lists 40 assets with unique tickers, a SEC CIK for every stock and an ISIN for every fund, and tests the feed checker against a local server (OK / blocked / missing / wrong type, feed-reader and contact User-Agents, the Alpaca login). It never contacts the real feeds. To check the real feeds from this machine (read-only):
+
+```powershell
+$env:FEED_CONTACT='ukic-agent@yourdomain.com'   # required by SEC and BLS; use a dedicated address
+$env:ALPACA_KEY_ID='...'; $env:ALPACA_SECRET_KEY='...'   # optional: tests the Alpaca news stream
+npm run check-feeds
+```
+
+See `docs\AGENT_GUIDE.md` for the assets, rules and sources.
 
 ### Live-site buy test (skipped by default)
 
