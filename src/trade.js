@@ -2,7 +2,7 @@
 // Buy / sell (UMushroom paper portfolios)
 // -----------------------------------------------------------------------------
 // The page flows were verified on 2026-09-27 on the real logged-in site, including real (paper) orders:
-//   Buy:  search the company -> /en/equity/<slug> -> "Add to portfolio" -> choose portfolio -> shares/amount -> Add
+//   Buy:  search the company -> /en/equity/<slug> (or /en/etf/<slug>) -> "Add to portfolio" -> choose portfolio -> shares/amount -> Add
 //   Sell: open the portfolio -> the holding row under Investments -> Sell -> shares -> Sell
 //   After submitting, the popup shows "Order placed" + Done; while the market is closed the order goes to Pending Orders and fills at the open.
 // Preview only by default (fill the form, read the values back, close the popup, do not submit); submit=true clicks the final button.
@@ -27,20 +27,31 @@ const num = (s) => { const n = Number(String(s ?? "").replace(/[^0-9.\-]/g, ""))
 /** Escape text for use inside a RegExp. */
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Slug of an equity page address (the part after /equity/, e.g. aapl-apple): a stable key for a stock; null if there is none. */
+/**
+ * Stable key of a security page address: the slug after /equity/ (e.g. aapl-apple) or "etf:" + the slug after /etf/
+ * (e.g. etf:amundi-physical-gold-etc-c-2, so an ETF can never share a key with a stock); null if there is none.
+ */
 export function equitySlug(href) {
-  const m = /\/equity\/([^/?#]+)/i.exec(String(href ?? ""));
-  return m ? m[1].toLowerCase() : null;
+  const m = /\/(equity|etf)\/([^/?#]+)/i.exec(String(href ?? ""));
+  if (!m) return null;
+  return (m[1].toLowerCase() === "etf" ? "etf:" : "") + m[2].toLowerCase();
 }
 
+/** Security pages that can be bought: stocks (/en/equity/) and ETFs/ETCs (/en/etf/). */
+const SECURITY_PATH = /^\/en\/(equity|etf)\//i;
+const SECURITY_TYPE = /^(equity|etf)$/i;
+/** An ISIN (e.g. FR0013416716): identifies one security exactly, so it is matched like a ticker. */
+const ISIN = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/i;
+
 /**
- * A company given directly as an equity page address (https://umushroom.com/en/equity/<slug> or /en/equity/<slug>): the full URL, else null.
+ * A company given directly as a security page address (https://umushroom.com/en/equity/<slug>, /en/etf/<slug>, or the same
+ * without the domain): the full URL, else null.
  * The slug must be plain (letters, digits, "-", "_", "." and not starting with "."), so an address can neither leave /en/equity/
- * (".." / "\" / %-escapes) nor spell the same stock differently to get around its order lock.
+ * or /en/etf/ (".." / "\" / %-escapes) nor spell the same stock differently to get around its order lock.
  */
 function directEquityUrl(company) {
-  const m = /^(?:https:\/\/umushroom\.com)?\/en\/equity\/([a-z0-9][a-z0-9._-]*)\/?$/i.exec(String(company ?? "").trim());
-  return m ? `${ORIGIN}/en/equity/${m[1]}` : null;
+  const m = /^(?:https:\/\/umushroom\.com)?\/en\/(equity|etf)\/([a-z0-9][a-z0-9._-]*)\/?$/i.exec(String(company ?? "").trim());
+  return m ? `${ORIGIN}/en/${m[1].toLowerCase()}/${m[2]}` : null;
 }
 
 /** "Name (TICKER)" list of search candidates for error messages. */
@@ -58,9 +69,9 @@ function checkOrder({ shares, amount }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Find the security page of a company with the site search. company can be a name (Apple), a ticker (AAPL)
- * or the equity page address itself (https://umushroom.com/en/equity/aapl-apple), which skips the search.
- * Only Equity results count; match priority: exact ticker > same name > name starts with it.
+ * Find the security page of a company with the site search. company can be a name (Apple), a ticker (AAPL), an ISIN
+ * (FR0013416716) or the security page address itself (https://umushroom.com/en/equity/aapl-apple, /en/etf/...), which skips the search.
+ * Only Equity and ETF results count (not Funds, portfolios or users); match priority: exact ticker or ISIN > same name > name starts with it.
  * Throws instead of guessing when no result matches (e.g. a typo or an alias such as "Google") or when
  * several different equities match equally well (e.g. "Alphabet": Class A and Class C); use the ticker or address then.
  */
@@ -82,15 +93,18 @@ export async function findEquity(page, company) {
     type: a.querySelector(".type")?.textContent.trim(),
     ticker: a.querySelector(".name small")?.textContent.replace("|", "").trim() ?? "",
     name: (a.querySelector(".name")?.childNodes[0]?.textContent ?? a.textContent).trim(),
+    text: a.textContent, // includes the ISIN line shown under ETF names
   })));
   await page.keyboard.press("Escape").catch(() => {});
-  const equities = candidates.filter((c) => /^equity$/i.test(c.type) && c.href?.startsWith("/en/equity/"));
-  if (!equities.length) throw new Error(`Searching "${company}" found no Equity results.`);
+  const equities = candidates.filter((c) => SECURITY_TYPE.test(c.type ?? "") && SECURITY_PATH.test(c.href ?? ""));
+  if (!equities.length) throw new Error(`Searching "${company}" found no Equity or ETF results.`);
   const q = norm(company);
+  const isin = ISIN.test(company.trim()) ? company.trim().toUpperCase() : null;
   const scored = equities.map((c) => ({
     ...c,
     // 4: exact displayed name, share class included ("Alphabet Inc Class A"), so it is never mistaken for another class
-    score: c.ticker.toLowerCase() === company.toLowerCase() ? 3 : exact(c.name) === exact(company) ? 4 : norm(c.name) === q ? 2 : norm(c.name).startsWith(q + " ") ? 1 : 0,
+    score: c.ticker.toLowerCase() === company.toLowerCase() || (isin && (c.text ?? "").toUpperCase().includes(isin)) ? 3
+      : exact(c.name) === exact(company) ? 4 : norm(c.name) === q ? 2 : norm(c.name).startsWith(q + " ") ? 1 : 0,
   })).sort((a, b) => b.score - a.score || a.name.length - b.name.length);
   const best = scored[0];
   // No ticker or name match: never take a search result that merely resembles the text (a single fuzzy hit used to be accepted)
@@ -102,10 +116,11 @@ export async function findEquity(page, company) {
   const level = (score) => Math.min(score, 3);
   const tied = scored.filter((c) => level(c.score) === level(best.score) && c.href !== best.href);
   if (tied.length) {
-    throw new Error(`"${company}" matches several equities equally well, please use the ticker or the equity page address: ` +
+    throw new Error(`"${company}" matches several equities equally well, please use the ticker, ISIN or page address: ` +
       [best, ...tied].map((e) => `${e.name} (${e.ticker}) ${ORIGIN}${e.href}`).join(", "));
   }
-  return { ...best, url: ORIGIN + best.href, alternatives: scored.slice(1).map(({ name, ticker }) => `${name} (${ticker})`) };
+  const { text, ...chosen } = best; // the raw result text was only needed for the ISIN match
+  return { ...chosen, url: ORIGIN + best.href, alternatives: scored.slice(1).map(({ name, ticker }) => `${name} (${ticker})`) };
 }
 
 /**
@@ -373,7 +388,7 @@ export async function sellStock(page, { company, portfolio, portfolioIndex, shar
   const readHoldings = () => rows.evaluateAll((els) => els.map((r) => ({
     name: r.querySelector("h5.title")?.textContent.trim(),
     // Prefer the stock's own link (a comma selector would return whichever link comes first in the row)
-    href: (r.querySelector('a[href*="/equity/"]') ?? r.querySelector("a[href]"))?.getAttribute("href"),
+    href: (r.querySelector('a[href*="/equity/"]') ?? r.querySelector('a[href*="/etf/"]') ?? r.querySelector("a[href]"))?.getAttribute("href"),
     shares: r.querySelector(".shares span")?.textContent.trim(),
   })));
   // Long holding lists are collapsed behind "See All": expand them (as the journal snapshot does), otherwise holdings further
@@ -401,7 +416,8 @@ export async function sellStock(page, { company, portfolio, portfolioIndex, shar
   // The available shares load a moment after the popup opens; poll until a non-zero value appears (up to about 6 seconds).
   let available = 0;
   for (let i = 0; i < 12 && !(available > 0); i += 1) {
-    available = num((await readPopup(popup)).metrics["Available shares"]) ?? 0;
+    const { metrics } = await readPopup(popup);
+    available = num(metrics["Available shares"] ?? metrics["Available units"]) ?? 0; // ETFs are counted in units
     if (!(available > 0)) await page.waitForTimeout(500);
   }
   const closePopup = () => popup.locator(S.popupClose).first().click().catch(() => {});

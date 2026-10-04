@@ -102,6 +102,58 @@ test("buy: an order form showing another instrument is refused and nothing is or
   assert.equal(orders.length, 0);
 });
 
+// ---------- ETFs / ETCs (/en/etf/ pages) ----------
+const GOLD_URL = `${ORIGIN}/en/etf/amundi-physical-gold-etc-c-2`;
+
+test("equitySlug: an ETF address gets its own key that can never equal a stock's", () => {
+  assert.equal(equitySlug("/en/etf/Amundi-Physical-Gold-ETC-C-2"), "etf:amundi-physical-gold-etc-c-2");
+  assert.equal(equitySlug("/en/fund/gold-sicherheit-euro-i"), null);
+});
+
+test("buy ETF: by ISIN picks the one product even when two share the ticker", async () => {
+  const r = await buy({ company: "FR0013416716", shares: 2, submit: true });
+  assert.equal(r.equity.name, "Amundi Physical Gold ETC C");
+  assert.equal(r.equity.url, GOLD_URL);
+  assert.equal(r.submitted, true);
+  assert.deepEqual(orders.map((o) => [o.ticker, o.shares]), [["GOLD", 2]]);
+  assert.deepEqual(await readLocks(), {});
+});
+
+test("buy ETF: a ticker shared by two ETFs is refused and both are listed", async () => {
+  await assert.rejects(buy({ company: "GOLD", shares: 1, submit: true }), /matches several equities equally well.*Amundi Physical Gold.*EUWAX Gold|matches several equities equally well.*EUWAX Gold.*Amundi Physical Gold/);
+  assert.equal(orders.length, 0);
+});
+
+test("buy ETF: by page address (skips the search); Fund results and /en/fund/ addresses are never bought", async () => {
+  const r = await buy({ company: GOLD_URL, shares: 1, submit: true });
+  assert.equal(r.equity.name, "Amundi Physical Gold ETC C");
+  assert.equal(orders.length, 1);
+  await page.goto(`${ORIGIN}/en/my-overview`);
+  await assert.rejects(buy({ company: "Gold & Sicherheit (Euro) I", shares: 1, submit: true }), /found no Equity or ETF results/);
+  await page.goto(`${ORIGIN}/en/my-overview`);
+  await assert.rejects(buy({ company: "/en/fund/gold-sicherheit-euro-i", shares: 1, submit: true }), /found no Equity or ETF results|Timeout/);
+  assert.equal(orders.length, 1);
+});
+
+test("buy ETF: no confirmation locks the ETF under its own key and leaves stocks unaffected", { timeout: 60_000 }, async () => {
+  await page.addInitScript(() => { window.__noConfirm = true; });
+  const error = await buy({ company: GOLD_URL, shares: 1, submit: true }).catch((e) => e);
+  assert.equal(error.code, "ORDER_UNCONFIRMED");
+  assert.deepEqual(Object.keys(await readLocks()), ["etf:amundi-physical-gold-etc-c-2"]);
+  await page.goto(`${ORIGIN}/en/my-overview`);
+  await assert.rejects(buy({ company: "FR0013416716", shares: 1, submit: true }), (e) => e.code === "ORDER_LOCKED");
+  assert.equal(orders.length, 1);
+});
+
+test("sell ETF: found by its page address, the available units are read and checked", async () => {
+  await assert.rejects(sell({ company: GOLD_URL, shares: 5, submit: true }), /at most 4 shares/);
+  await page.goto(`${ORIGIN}/en/my-overview`);
+  const r = await sell({ company: GOLD_URL, shares: "all", submit: true });
+  assert.equal(r.submitted, true);
+  assert.equal(r.holding.name, "Amundi Physical Gold ETC C");
+  assert.deepEqual(orders, [{ side: "sell", ticker: "GOLD", shares: 4 }]);
+});
+
 // ---------- Order locks (duplicate orders) ----------
 test("buy: no confirmation after submitting -> submitted 'unknown', stock locked, a retry is refused, previews still work", { timeout: 60_000 }, async () => {
   await page.addInitScript(() => { window.__noConfirm = true; });
