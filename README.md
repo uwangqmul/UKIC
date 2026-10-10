@@ -1,3 +1,5 @@
+> 看板、时间表、资讯机器人和 Jev 推理流水线见 [UKIC_HUB.md](UKIC_HUB.md)（`hub/`、`news_bot/`、`start_hub.bat`）。
+
 # UMushroom MCP Browser Example
 
 This project uses a signed-in Google Chrome to open [UMushroom My Overview](https://umushroom.com/en/my-overview) without logging in again, and lets you work with your portfolios through MCP tools or the command line.

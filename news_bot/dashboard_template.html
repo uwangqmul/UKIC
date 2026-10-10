@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock News Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root {
+    --paper: #F2F4F7;
+    --panel: #FFFFFF;
+    --ink: #18263A;
+    --ink-2: #4E5D72;
+    --ink-3: #8794A6;
+    --rule: #DDE3EA;
+    --hover: #E8EDF3;
+    --jev: #4A4FD0;
+    --jev-soft: #E9EAFB;
+    --red: #D2353C;
+    --green: #17985F;
+    --up: var(--red);
+    --down: var(--green);
+    --flat: #8794A6;
+    --num: "Barlow Semi Condensed", "Noto Sans SC", system-ui, sans-serif;
+    --text: "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  :root[data-colors="west"] { --up: var(--green); --down: var(--red); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #121A26; --panel: #1A2433; --ink: #E6ECF4; --ink-2: #A9B6C7; --ink-3: #6F7E92;
+      --rule: #2A3646; --hover: #223044; --jev: #9EA2FF; --jev-soft: #262B52;
+      --red: #F0565C; --green: #2FBF7F;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 14px/1.6 var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--jev); outline-offset: 2px; }
+  a { color: inherit; }
+
+  /* ---------- Top bar ---------- */
+  .top {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+    padding: 14px 24px; border-bottom: 1px solid var(--rule); background: var(--panel);
+  }
+  .top h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: .02em; }
+  .top .meta { color: var(--ink-2); font-size: 13px; }
+  .top .meta b { font-family: var(--num); font-weight: 600; font-size: 15px; color: var(--jev); }
+  .top .controls { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .top select, .top input {
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 10px;
+  }
+  .top input { width: 150px; }
+  .swatch {
+    display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule);
+    background: var(--paper); border-radius: 6px; padding: 5px 10px; cursor: pointer;
+  }
+  .swatch i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* ---------- Layout ---------- */
+  .layout { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 62px); }
+  .list { border-right: 1px solid var(--rule); background: var(--panel); overflow-y: auto; max-height: calc(100vh - 62px); position: sticky; top: 0; }
+  .main { padding: 24px 32px 48px; min-width: 0; }
+
+  /* ---------- Stock list ---------- */
+  .row {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; width: 100%;
+    padding: 10px 18px 11px; border: 0; border-bottom: 1px solid var(--rule);
+    background: none; text-align: left; cursor: pointer;
+  }
+  .row:hover { background: var(--hover); }
+  .row[aria-current="true"] { background: var(--hover); box-shadow: inset 3px 0 0 var(--ink); }
+  .row .tk { font-family: var(--num); font-weight: 700; font-size: 17px; letter-spacing: .01em; }
+  .row .nm { color: var(--ink-3); font-size: 12px; margin-left: 6px; }
+  .row .px { font-family: var(--num); font-size: 15px; font-weight: 600; text-align: right; }
+  .row .ch { font-family: var(--num); font-size: 13px; text-align: right; }
+  .row .tally { color: var(--ink-3); font-size: 12px; font-family: var(--num); }
+  .bar { grid-column: 1 / -1; position: relative; height: 4px; background: var(--rule); border-radius: 2px; margin-top: 4px; }
+  .bar::after { content: ""; position: absolute; left: 50%; top: -2px; width: 1px; height: 8px; background: var(--ink-3); }
+  .bar span { position: absolute; top: 0; height: 100%; border-radius: 2px; }
+  .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--flat); }
+
+  /* ---------- Stock header ---------- */
+  .head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 28px; margin-bottom: 18px; }
+  .head .tk { font-family: var(--num); font-weight: 700; font-size: 60px; line-height: .9; letter-spacing: -.01em; }
+  .head .nm { color: var(--ink-2); font-size: 15px; margin-top: 8px; }
+  .head .px { font-family: var(--num); font-size: 34px; font-weight: 600; line-height: 1; }
+  .head .ch { font-family: var(--num); font-size: 18px; font-weight: 600; margin-left: 8px; }
+  .lean {
+    margin-left: auto; padding: 10px 14px; border-radius: 8px; background: var(--jev-soft); color: var(--ink);
+    font-size: 13px; max-width: 320px;
+  }
+  .lean strong { color: var(--jev); font-family: var(--num); font-size: 20px; font-weight: 700; margin-left: 4px; }
+
+  /* ---------- Chart ---------- */
+  .chartbox { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 12px 6px; }
+  .ranges { display: flex; gap: 4px; margin-bottom: 8px; align-items: center; }
+  .ranges button {
+    border: 0; background: none; padding: 3px 10px; border-radius: 5px; cursor: pointer; color: var(--ink-2);
+    font-family: var(--num); font-size: 14px; font-weight: 600; white-space: nowrap;
+  }
+  .ranges button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+  .ranges .hint { margin-left: auto; color: var(--ink-3); font-size: 12px; }
+  #chart { height: 360px; }
+  .nochart { height: 200px; display: grid; place-items: center; color: var(--ink-3); }
+
+  /* ---------- News ---------- */
+  .newsbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 30px 0 10px; }
+  .newsbar h2 { margin: 0; font-size: 16px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filters button {
+    border: 1px solid var(--rule); background: var(--panel); border-radius: 999px; padding: 2px 12px;
+    cursor: pointer; font-size: 13px; color: var(--ink-2);
+  }
+  .filters button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); font-weight: 500; }
+  .dayfilter { font-size: 13px; color: var(--jev); }
+  .dayfilter button { border: 0; background: none; color: var(--jev); cursor: pointer; text-decoration: underline; }
+
+  .news { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+  .item { border-bottom: 1px solid var(--rule); }
+  .item > button {
+    display: grid; grid-template-columns: 22px 1fr auto; gap: 4px 12px; width: 100%;
+    padding: 12px 4px; border: 0; background: none; text-align: left; cursor: pointer;
+  }
+  .item > button:hover { background: var(--hover); }
+  .item .ic { font-size: 15px; line-height: 1.5; }
+  .item .tt { font-weight: 500; line-height: 1.45; }
+  .item .sub { grid-column: 2; color: var(--ink-3); font-size: 12px; }
+  .badge {
+    align-self: start; font-family: var(--num); font-weight: 600; font-size: 14px; white-space: nowrap;
+    padding: 1px 8px; border-radius: 5px; background: var(--jev-soft);
+  }
+  .badge.none { background: none; color: var(--ink-3); font-family: var(--text); font-weight: 400; font-size: 12px; }
+  .item.hl > button { background: var(--jev-soft); }
+
+  .detail { display: none; padding: 4px 4px 18px 38px; }
+  .item[data-open="true"] .detail { display: block; }
+  .jevcard { border-left: 3px solid var(--jev); padding: 2px 0 2px 16px; margin-bottom: 12px; max-width: 640px; }
+  .jevcard h3 { margin: 0 0 8px; font-size: 13px; color: var(--jev); font-weight: 700; }
+  .metric { display: grid; grid-template-columns: 76px 1fr 110px; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
+  .metric .lbl { color: var(--ink-2); }
+  .metric .val { font-family: var(--num); font-weight: 600; font-size: 15px; text-align: right; }
+  .track { height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; display: flex; }
+  .track span { height: 100%; }
+  .seg { display: flex; gap: 3px; }
+  .seg span { flex: 1; height: 6px; border-radius: 3px; background: var(--rule); }
+  .seg span.on { background: var(--jev); }
+  .moves { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--ink-2); margin: 10px 0 0; }
+  .moves b { font-family: var(--num); font-size: 16px; font-weight: 600; }
+  .verdict { font-size: 13px; margin-top: 6px; }
+  .summary { color: var(--ink-2); font-size: 13px; max-width: 70ch; margin: 0 0 10px; }
+  .open {
+    display: inline-block; padding: 5px 14px; border-radius: 6px; background: var(--ink); color: var(--panel);
+    text-decoration: none; font-size: 13px; font-weight: 500;
+  }
+  .empty { color: var(--ink-3); padding: 24px 4px; }
+  .foot { color: var(--ink-3); font-size: 12px; margin-top: 28px; max-width: 70ch; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .list { position: static; max-height: 260px; border-right: 0; border-bottom: 1px solid var(--rule); }
+    .main { padding: 18px 16px 40px; }
+    .head .tk { font-size: 44px; }
+    .lean { margin-left: 0; }
+    .top { padding: 12px 16px; }
+    .top .controls { margin-left: 0; }
+    #chart { height: 280px; }
+    .detail { padding-left: 4px; }
+    .ranges .hint { display: none; }
+    .metric { grid-template-columns: 70px 1fr 96px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .item[data-open="true"] .detail { animation: open .18s ease-out; }
+    @keyframes open { from { opacity: 0; transform: translateY(-4px); } }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Stock News Dashboard</h1>
+  <span class="meta" id="meta"></span>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Search ticker or company" aria-label="Search ticker or company">
+    <select id="sort" aria-label="Sort">
+      <option value="score">Sort by Jev leaning</option>
+      <option value="change">Sort by daily change</option>
+      <option value="news">Sort by news count</option>
+      <option value="symbol">Sort by ticker</option>
+    </select>
+    <button class="swatch" id="colors" type="button" aria-label="Switch up/down colours"></button>
+  </div>
+</header>
+<div class="layout">
+  <nav class="list" id="list" aria-label="Stock list"></nav>
+  <main class="main" id="main"></main>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (v, d = 2) => v == null ? "—" : (v > 0 ? "+" : "") + (v * 100).toFixed(d) + "%";
+const dir = v => v == null || Math.abs(v) < 1e-6 ? "flat" : v > 0 ? "up" : "down";
+const fmtPx = v => v == null ? "—" : v >= 1000 ? v.toLocaleString("en-US", { maximumFractionDigits: 0 }) : v.toFixed(2);
+const fmtTime = iso => {
+  if (!iso) return "Time unknown";
+  const d = new Date(iso);
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+const localDay = iso => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const TAG = { official: ["🏢", "Official"], contract: ["🛡️", "Contract/Defense"], news: ["📰", "News"] };
+const LABEL = { up: "Bullish", down: "Bearish", neutral: "Neutral" };
+const ARROW = { up: "📈", down: "📉", neutral: "➖" };
+const impactText = s => s < 0.67 ? "Low" : s < 1.34 ? "Medium" : "High";
+
+const state = {
+  sym: null, range: "3M", filter: "all", day: null, open: new Set(),
+  sort: "score", q: "", colors: "cn",
+};
+try { Object.assign(state, JSON.parse(localStorage.getItem("dash") || "{}")); } catch (e) {}
+const save = () => { try { localStorage.setItem("dash", JSON.stringify({ sym: state.sym, range: state.range, sort: state.sort, colors: state.colors })); } catch (e) {} };
+
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+/* ---------- Top bar ---------- */
+function renderTop() {
+  const a = DATA.accuracy;
+  let m = `Updated ${esc(DATA.generated)}`;
+  if (!DATA.jev_enabled) m += " · Jev not enabled";
+  else if (a.total) m += ` · Jev direction hit rate <b>${a.hits}/${a.total}</b> (${Math.round(a.hits / a.total * 100)}%)`;
+  else m += " · Jev hit rate: waiting for the next trading day";
+  $("#meta").innerHTML = m;
+  document.documentElement.dataset.colors = state.colors;
+  $("#colors").innerHTML = state.colors === "cn"
+    ? `<i style="background:var(--red)"></i>Red up <i style="background:var(--green)"></i>Green down`
+    : `<i style="background:var(--green)"></i>Green up <i style="background:var(--red)"></i>Red down`;
+  $("#sort").value = state.sort;
+}
+
+/* ---------- List ---------- */
+function sorted() {
+  const q = state.q.trim().toLowerCase();
+  const list = DATA.stocks.filter(s => !q || s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+  const by = {
+    score: (a, b) => b.score - a.score,
+    change: (a, b) => (b.change ?? -9) - (a.change ?? -9),
+    news: (a, b) => b.news.length - a.news.length,
+    symbol: (a, b) => a.symbol.localeCompare(b.symbol),
+  }[state.sort];
+  return list.sort(by);
+}
+
+function renderList() {
+  $("#list").innerHTML = sorted().map(s => {
+    const w = Math.min(Math.abs(s.score), 1) * 50;
+    const side = s.score >= 0 ? `left:50%;width:${w}%;background:var(--up)` : `right:50%;width:${w}%;background:var(--down)`;
+    const c = s.counts;
+    return `<button class="row" data-sym="${esc(s.symbol)}" aria-current="${s.symbol === state.sym}">
+      <span><span class="tk">${esc(s.symbol)}</span><span class="nm">${esc(s.name)}</span></span>
+      <span class="px">${fmtPx(s.last)}</span>
+      <span class="tally">${s.news.length} news${c.up || c.down ? `  📈${c.up} 📉${c.down}` : ""}</span>
+      <span class="ch ${dir(s.change)}">${pct(s.change)}</span>
+      <span class="bar" title="Jev leaning, last 3 days: ${s.score.toFixed(2)}"><span style="${side}"></span></span>
+    </button>`;
+  }).join("") || `<p class="empty">No matching stocks</p>`;
+}
+
+/* ---------- Selected stock ---------- */
+let chart = null, series = null;
+
+function renderMain() {
+  const s = DATA.stocks.find(x => x.symbol === state.sym) || sorted()[0] || DATA.stocks[0];
+  state.sym = s.symbol;
+  const lean = !DATA.jev_enabled ? "" :
+    `<div class="lean">Jev leaning, last 3 days
+      <strong>${s.score > 0.15 ? "Bullish" : s.score < -0.15 ? "Bearish" : "Neutral"} ${s.score > 0 ? "+" : ""}${s.score.toFixed(2)}</strong>
+      <div style="color:var(--ink-2)">From −1 to +1, weighted by each item's direction, confidence, impact and relevance</div></div>`;
+  $("#main").innerHTML = `
+    <section class="head">
+      <div><div class="tk">${esc(s.symbol)}</div><div class="nm">${esc(s.name)}</div></div>
+      <div><span class="px">${fmtPx(s.last)}</span><span class="ch ${dir(s.change)}">${pct(s.change)}</span>
+        <div style="color:var(--ink-3);font-size:12px;margin-top:6px">${s.currency ? esc(s.currency) + " · " : ""}Last close, vs previous trading day</div></div>
+      ${lean}
+    </section>
+    <section class="chartbox">
+      <div class="ranges">${["1M", "3M", "6M", "1Y"].map(r =>
+        `<button data-range="${r}" aria-pressed="${r === state.range}">${r}</button>`).join("")}
+        <span class="hint">Arrows mark days with bullish/bearish news. Click a candle to filter that day's news</span></div>
+      ${s.bars.length ? `<div id="chart"></div>` : `<div class="nochart">${esc(s.chart_note || "No price data")}</div>`}
+    </section>
+    <section>
+      <div class="newsbar">
+        <h2>News</h2>
+        <div class="filters">${[["all", "All"], ["up", "📈 Bullish"], ["down", "📉 Bearish"], ["official", "🏢 Official"], ["contract", "🛡️ Contracts"]]
+          .map(([k, t]) => `<button data-filter="${k}" aria-pressed="${state.filter === k}">${t}</button>`).join("")}</div>
+        ${state.day ? `<span class="dayfilter">Showing ${state.day} only <button data-clearday>Show all</button></span>` : ""}
+      </div>
+      <ul class="news" id="news"></ul>
+      <p class="foot">Jev judges the likely direction of a news item's effect on the share price. It is not a price prediction and not investment advice. Price moves are measured from the first close after the news was published (the earliest price you could buy at after seeing it). The hit rate only counts bullish/bearish calls where the next day moved more than 0.3%; with few samples it means little.</p>
+    </section>`;
+  renderNews(s);
+  if (s.bars.length) drawChart(s);
+  else if (chart) { chart.remove(); chart = null; }
+}
+
+function filteredNews(s) {
+  return s.news.filter(n => {
+    if (state.day && (!n.published || barDay(s, n.published) !== state.day)) return false;
+    if (state.filter === "up" || state.filter === "down") return n.jev && n.jev.label === state.filter;
+    if (state.filter === "official" || state.filter === "contract") return n.tag === state.filter;
+    return true;
+  });
+}
+
+function renderNews(s) {
+  const items = filteredNews(s);
+  $("#news").innerHTML = items.map((n, i) => {
+    const key = n.link;
+    const j = n.jev;
+    const badge = j ? `<span class="badge ${j.label}">${ARROW[j.label]} ${Math.round(j.prob * 100)}%${j.impact >= 1.34 ? " ❗" : ""}</span>`
+                    : `<span class="badge none">${DATA.jev_enabled ? "Not judged" : ""}</span>`;
+    return `<li class="item" data-open="${state.open.has(key)}" data-key="${esc(key)}">
+      <button aria-expanded="${state.open.has(key)}">
+        <span class="ic" title="${TAG[n.tag][1]}">${TAG[n.tag][0]}</span>
+        <span class="tt">${esc(n.title)}</span>
+        ${badge}
+        <span class="sub">${esc(n.source)} · ${fmtTime(n.published)}</span>
+      </button>
+      <div class="detail">${detail(n)}</div>
+    </li>`;
+  }).join("") || `<li class="empty">${state.day || state.filter !== "all" ? "No news matches this filter" : "No news for this company in the last 14 days. New items appear after the next check"}</li>`;
+}
+
+function detail(n) {
+  const j = n.jev, mv = n.move;
+  let html = "";
+  if (j) {
+    const verdict = (() => {
+      if (!mv || mv.next == null) return `<div class="verdict" style="color:var(--ink-3)">Needs one more trading-day close before it can be compared</div>`;
+      if (j.label === "neutral") return `<div class="verdict" style="color:var(--ink-3)">Jev called this neutral, so it is not counted in the hit rate</div>`;
+      if (Math.abs(mv.next) < 0.003) return `<div class="verdict" style="color:var(--ink-3)">The next day barely moved (under 0.3%), so it is not counted</div>`;
+      const ok = (mv.next > 0) === (j.label === "up");
+      return `<div class="verdict" style="color:${ok ? "var(--jev)" : "var(--ink-2)"}">${ok ? "✓ The next day moved in Jev's direction" : "✗ The next day moved against Jev's call"}</div>`;
+    })();
+    html += `<div class="jevcard"><h3>🤖 Jev judgement</h3>
+      <div class="metric"><span class="lbl">Direction</span>
+        <span class="track"><span style="width:${j.prob * 100}%;background:${j.label === "up" ? "var(--up)" : j.label === "down" ? "var(--down)" : "var(--flat)"}"></span></span>
+        <span class="val">${LABEL[j.label]} ${Math.round(j.prob * 100)}%</span></div>
+      <div class="metric"><span class="lbl">Impact</span>
+        <span class="seg">${[0, 1, 2].map(k => `<span class="${k <= Math.round(j.impact) ? "on" : ""}"></span>`).join("")}</span>
+        <span class="val">${impactText(j.impact)}</span></div>
+      <div class="metric"><span class="lbl">Relevance</span>
+        <span class="track"><span style="width:${j.relevant * 100}%;background:var(--jev)"></span></span>
+        <span class="val">${j.relevant >= 0.6 ? "Main topic" : j.relevant >= 0.4 ? "Partly" : "In passing"}</span></div>
+      ${mv && mv.since != null ? `<div class="moves"><span>Next day <b class="${dir(mv.next)}">${pct(mv.next)}</b></span>
+        <span>Since <b class="${dir(mv.since)}">${pct(mv.since)}</b></span></div>` : ""}
+      ${verdict}</div>`;
+  } else if (mv && mv.since != null) {
+    html += `<div class="moves" style="margin-bottom:12px"><span>Next day <b class="${dir(mv.next)}">${pct(mv.next)}</b></span>
+      <span>Since <b class="${dir(mv.since)}">${pct(mv.since)}</b></span></div>`;
+  }
+  if (n.summary) html += `<p class="summary">${esc(n.summary)}</p>`;
+  html += `<a class="open" href="${esc(n.link)}" target="_blank" rel="noopener">Read article</a>`;
+  return html;
+}
+
+/* ---------- Chart ---------- */
+function barDay(s, iso) {
+  const d = localDay(iso);
+  const b = s.bars.find(b => b[0] >= d);
+  return b ? b[0] : null;
+}
+
+function drawChart(s) {
+  if (typeof LightweightCharts === "undefined") {
+    $("#chart").outerHTML = `<div class="nochart">The chart library did not load. Check your connection and refresh the page</div>`;
+    return;
+  }
+  if (chart) chart.remove();
+  const el = $("#chart");
+  chart = LightweightCharts.createChart(el, {
+    autoSize: true,
+    layout: { background: { color: "transparent" }, textColor: cssVar("--ink-2"), fontFamily: "Barlow Semi Condensed, sans-serif", fontSize: 12 },
+    grid: { vertLines: { color: cssVar("--rule") }, horzLines: { color: cssVar("--rule") } },
+    rightPriceScale: { borderColor: cssVar("--rule") },
+    timeScale: { borderColor: cssVar("--rule") },
+    crosshair: { mode: 0 },
+    localization: { locale: "en-US" },
+  });
+  const up = cssVar("--up"), down = cssVar("--down");
+  series = chart.addCandlestickSeries({ upColor: up, downColor: down, wickUpColor: up, wickDownColor: down, borderVisible: false });
+  series.setData(s.bars.map(b => ({ time: b[0], open: b[1], high: b[2], low: b[3], close: b[4] })));
+
+  const days = {};
+  for (const n of s.news) {
+    if (!n.jev || n.jev.label === "neutral" || !n.published) continue;
+    const d = barDay(s, n.published);
+    if (!d) continue;
+    days[d] = days[d] || { up: 0, down: 0 };
+    days[d][n.jev.label]++;
+  }
+  const markers = [];
+  for (const [d, c] of Object.entries(days).sort()) {
+    if (c.up) markers.push({ time: d, position: "belowBar", shape: "arrowUp", color: up, text: c.up > 1 ? String(c.up) : "" });
+    if (c.down) markers.push({ time: d, position: "aboveBar", shape: "arrowDown", color: down, text: c.down > 1 ? String(c.down) : "" });
+  }
+  series.setMarkers(markers);
+  setRange(s);
+  chart.subscribeClick(p => {
+    if (!p.time) return;
+    const d = typeof p.time === "string" ? p.time : `${p.time.year}-${String(p.time.month).padStart(2, "0")}-${String(p.time.day).padStart(2, "0")}`;
+    state.day = state.day === d ? null : d;
+    const sc = window.scrollY;
+    renderMainKeepChart(s);
+    window.scrollTo(0, sc);
+  });
+}
+
+function setRange(s) {
+  if (!chart || !s.bars.length) return;
+  const months = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12 }[state.range];
+  const last = s.bars[s.bars.length - 1][0];
+  const from = new Date(last); from.setMonth(from.getMonth() - months);
+  chart.timeScale().setVisibleRange({ from: from.toISOString().slice(0, 10), to: last });
+}
+
+function renderMainKeepChart(s) {
+  // Refresh only the news list, not the chart
+  const newsbar = $(".newsbar");
+  newsbar.querySelector(".dayfilter")?.remove();
+  if (state.day) newsbar.insertAdjacentHTML("beforeend", `<span class="dayfilter">Showing ${state.day} only <button data-clearday>Show all</button></span>`);
+  renderNews(s);
+}
+
+/* ---------- Interaction ---------- */
+document.addEventListener("click", e => {
+  const row = e.target.closest(".row");
+  if (row) {
+    state.sym = row.dataset.sym; state.day = null; state.filter = "all";
+    save(); renderList(); renderMain();
+    if (matchMedia("(max-width: 860px)").matches) $("#main").scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+  const r = e.target.closest("[data-range]");
+  if (r) {
+    state.range = r.dataset.range; save();
+    document.querySelectorAll("[data-range]").forEach(b => b.setAttribute("aria-pressed", b === r));
+    setRange(DATA.stocks.find(x => x.symbol === state.sym));
+    return;
+  }
+  const f = e.target.closest("[data-filter]");
+  if (f) {
+    state.filter = f.dataset.filter;
+    document.querySelectorAll("[data-filter]").forEach(b => b.setAttribute("aria-pressed", b === f));
+    renderNews(DATA.stocks.find(x => x.symbol === state.sym));
+    return;
+  }
+  if (e.target.closest("[data-clearday]")) {
+    state.day = null; renderMainKeepChart(DATA.stocks.find(x => x.symbol === state.sym)); return;
+  }
+  const item = e.target.closest(".item > button");
+  if (item) {
+    const li = item.parentElement, key = li.dataset.key;
+    const open = li.dataset.open !== "true";
+    open ? state.open.add(key) : state.open.delete(key);
+    li.dataset.open = open; item.setAttribute("aria-expanded", open);
+  }
+});
+$("#sort").addEventListener("change", e => { state.sort = e.target.value; save(); renderList(); });
+$("#q").addEventListener("input", e => { state.q = e.target.value; renderList(); });
+$("#colors").addEventListener("click", () => {
+  state.colors = state.colors === "cn" ? "west" : "cn"; save();
+  renderTop(); renderList(); renderMain();
+});
+
+state.open = new Set();
+renderTop(); renderList(); renderMain();
+</script>
+</body>
+</html>
