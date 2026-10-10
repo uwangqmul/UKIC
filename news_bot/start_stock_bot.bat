@@ -13,7 +13,8 @@ echo Checking dependencies...
 if errorlevel 1 goto failed
 
 %PY% setup_telegram.py --quiet
-if errorlevel 1 goto failed
+rem Telegram not ready (or unreachable) should not stop news collection; messages are retried next round
+if errorlevel 1 echo Telegram is not ready: news is still collected, messages will be sent once it works.
 
 %PY% app.py
 pause

@@ -19,9 +19,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import autotrade
+import pipeline
 import scheduler
+import tg_commands
 import trader_bridge
-from common import (ASSETS_FILE, BRIEFS, DECISIONS, LOG_FILE, NEWS_BOT, ROOT, SKILL, TRADER, WEB, clock_info,
+from common import (ASSETS_FILE, BRIEFS, DATA, DECISIONS, LOG_FILE, NEWS_BOT, ROOT, SKILL, TRADER, WEB, clock_info,
                     load_settings, log, now_utc, read_json, save_settings, to_london, write_json)
 
 PORT = 6400
@@ -76,6 +78,8 @@ def status():
             "journal_running": journal_running(),
             "umushroom_login": (TRADER / ".browser-data" / "umushroom-profile").exists(),
             "telegram": keys.get("TELEGRAM_BOT_TOKEN", False) and keys.get("TELEGRAM_CHAT_ID", False),
+            "telegram_last": read_json(DATA / "telegram_status.json", None),
+            "tg_commands": tg_commands.status(),
             "jev": keys.get("TYPESAFE_API_KEY", False),
         },
     }
@@ -174,7 +178,7 @@ def trade(body):
                                submit=body.get("submit") is True)
 
 
-AUTO_LIMIT_KEYS = {"auto_portfolio": str, "auto_min_prob": float, "auto_amount_usd": float, "auto_sell": str,
+AUTO_LIMIT_KEYS = {"auto_portfolio": str, "auto_practice_portfolio": str, "auto_min_prob": float, "auto_amount_usd": float, "auto_sell": str,
                    "auto_max_per_run": int, "auto_max_per_day": int, "auto_cooldown_hours": float,
                    "auto_us_only": bool, "auto_headless": bool, "auto_run_kinds": list}
 
@@ -182,9 +186,9 @@ AUTO_LIMIT_KEYS = {"auto_portfolio": str, "auto_min_prob": float, "auto_amount_u
 def auto_state():
     s = load_settings()
     ok, why = autotrade.can_go_live(s)
-    good = autotrade.last_good_dry_run(s["auto_portfolio"]) if s["auto_portfolio"].strip() else None
+    good = autotrade.last_good_dry_run(s["auto_practice_portfolio"]) if s["auto_practice_portfolio"].strip() else None
     return {"settings": {k: s[k] for k in ["auto_mode", *AUTO_LIMIT_KEYS]}, "can_go_live": ok, "why_not": why,
-            "last_good_dry_run": good and good["time"], "ledger": list(reversed(autotrade.ledger(40)))}
+            "last_good_dry_run": good and good["time"], "running_now": autotrade.running_now(), "ledger": list(reversed(autotrade.ledger(40)))}
 
 
 def save_auto_limits(body):
@@ -202,8 +206,12 @@ def save_auto_limits(body):
         update[k] = v
     if "auto_sell" in update and not (update["auto_sell"] == "all" or re.fullmatch(r"\d+(\.\d+)?", update["auto_sell"])):
         raise ValueError("auto_sell must be 'all' or a number of shares")
-    if "auto_portfolio" in update and update["auto_portfolio"] and not trader_bridge.NAME_RE.match(update["auto_portfolio"]):
-        raise ValueError("invalid portfolio name")
+    for k in ("auto_portfolio", "auto_practice_portfolio"):
+        if update.get(k) and not trader_bridge.NAME_RE.match(update[k]):
+            raise ValueError("invalid portfolio name")
+    comp = update.get("auto_portfolio", load_settings()["auto_portfolio"]).strip().lower()
+    if comp and update.get("auto_practice_portfolio", "").strip().lower() == comp:
+        raise ValueError("The practice portfolio must not have the same name as the competition portfolio")
     save_settings(update)
     return auto_state()
 
@@ -229,12 +237,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def send(self, code, data, ctype="application/json; charset=utf-8"):
         body = data if isinstance(data, bytes) else json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(code)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except ConnectionError:
+            pass  # the browser closed the tab or reloaded mid-response
 
     def do_GET(self):
         u = urlparse(self.path)
@@ -298,6 +309,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, {**autotrade.set_mode(body.get("mode")), "state": auto_state()})
             if u.path == "/api/autotrade/settings":
                 return self.send(200, save_auto_limits(body))
+            if u.path == "/api/autotrade/run_latest":
+                return self.send(200, {**autotrade.dry_run_latest_now(pipeline.notify), "state": auto_state()})
             if u.path == "/api/autotrade/test":
                 sym = str(body.get("symbol") or "AAPL").strip().upper()
                 return self.send(200, {**autotrade.test_dry_run(sym), "state": auto_state()})
@@ -310,7 +323,6 @@ class Handler(BaseHTTPRequestHandler):
                 (SKILL / name).write_text(str(body.get("text", "")), encoding="utf-8")
                 return self.send(200, {"ok": True})
             if u.path == "/api/test_telegram":
-                import pipeline
                 return self.send(200, {"ok": pipeline.notify("✅ UKIC Hub test message")})
             self.send(404, {"error": "not found"})
         except Exception as e:
@@ -318,14 +330,26 @@ class Handler(BaseHTTPRequestHandler):
             self.send(500, {"error": str(e)})
 
 
+class HubServer(ThreadingHTTPServer):
+    # SO_REUSEADDR on Windows lets a second hub bind the same port (two schedulers, double runs).
+    # Take the port exclusively so a second start_hub.bat hits the "already running" branch.
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def main():
     try:
-        httpd = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+        httpd = HubServer(("127.0.0.1", PORT), Handler)
     except OSError:
         print(f"The hub is already running. Opening http://127.0.0.1:{PORT}/")
         webbrowser.open(f"http://127.0.0.1:{PORT}/")
         return
     scheduler.start()
+    tg_commands.start()
     url = f"http://127.0.0.1:{PORT}/"
     print("=" * 56)
     print(f" UKIC Hub running at {url}")

@@ -118,11 +118,11 @@
     },
     "SPACEX": {
       "sector": "Defence & space",
-      "trade": false
+      "trade": true
     },
     "FIDELITY": {
       "sector": "Funds",
-      "trade": false
+      "trade": true
     }
   },
   "horizon_rules": {

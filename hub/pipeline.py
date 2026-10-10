@@ -19,8 +19,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import autotrade
-from common import (ASSETS_FILE, BRIEFS, DECISIONS, NEWS_BOT, load_settings, log, now_utc, read_json,
+from common import (ASSETS_FILE, BRIEFS, DATA, DECISIONS, NEWS_BOT, load_settings, log, now_utc, read_json,
                     to_london, write_json)
+
+TELEGRAM_STATUS = DATA / "telegram_status.json"
 
 KINDS = {
     "morning": "Morning run (full reasoning, sent to Telegram)",
@@ -228,12 +230,15 @@ def telegram_text(dec):
 
 
 def notify(text):
+    at = to_london(now_utc()).strftime("%Y-%m-%d %H:%M")
     try:
         from telegram_bot import send_message
         send_message(text, preview=False)
+        write_json(TELEGRAM_STATUS, {"ok": True, "at": at, "error": ""})
         return True
-    except (Exception, SystemExit) as e:  # telegram_bot exits when the token is missing
+    except (Exception, SystemExit) as e:
         log.warning("Telegram failed: %s", e)
+        write_json(TELEGRAM_STATUS, {"ok": False, "at": at, "error": str(e)[:300]})
         return False
 
 

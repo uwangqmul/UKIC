@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -60,130 +60,131 @@ iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;ba
 <main>
 
 <section id="overview">
-  <h2>总览</h2>
+  <h2>Overview</h2>
   <div class="grid">
-    <div class="card"><b>时间</b><div id="ov-time"></div></div>
-    <div class="card"><b>各部件状态</b><div id="ov-health"></div></div>
-    <div class="card"><b>推理</b><div id="ov-run"></div>
+    <div class="card"><b>Time</b><div id="ov-time"></div></div>
+    <div class="card"><b>Component status</b><div id="ov-health"></div></div>
+    <div class="card"><b>Reasoning</b><div id="ov-run"></div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn primary" onclick="runNow('manual')">立即推理一次</button>
-        <button class="btn" onclick="runNow('night')">只收集资讯</button>
+        <button class="btn primary" onclick="runNow('manual')">Run reasoning now</button>
+        <button class="btn" onclick="runNow('night')">Collect news only</button>
       </div></div>
   </div>
-  <div class="card"><b>快捷启动</b>
+  <div class="card"><b>Quick launch</b>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" onclick="launch('news_bot')">启动新闻机器人</button>
-      <button class="btn" onclick="launch('umushroom')">打开 UMushroom 和组合日志</button>
-      <button class="btn" onclick="launch('news_dashboard')">打开资讯 K 线看板</button>
-      <button class="btn" onclick="post('/api/test_telegram',{}).then(r=>toast(r.ok?'测试消息已发到 Telegram':'Telegram 发送失败，请看日志'))">Telegram 测试</button>
+      <button class="btn" onclick="launch('news_bot')">Start news bot</button>
+      <button class="btn" onclick="launch('umushroom')">Open UMushroom and portfolio journal</button>
+      <button class="btn" onclick="launch('news_dashboard')">Open news and chart dashboard</button>
+      <button class="btn" onclick="post('/api/test_telegram',{}).then(r=>toast(r.ok?'Test message sent to Telegram':'Telegram send failed, see the log'))">Test Telegram</button>
     </div></div>
-  <div class="card"><b>接下来的安排</b><table id="ov-next"></table></div>
+  <div class="card"><b>Coming up</b><table id="ov-next"></table></div>
 </section>
 
 <section id="watch">
-  <h2>关注列表</h2>
+  <h2>Watchlist</h2>
   <div class="card">
-    <label class="row" style="margin-top:0"><span>按行检索</span><input id="w-q" placeholder="代码、名称、板块或笔记里的字" oninput="renderWatch()" style="flex:1;min-width:200px">
-      <select id="w-f" onchange="renderWatch()"><option value="">全部</option><option value="notes">有笔记</option><option value="news">24 小时有资讯</option><option value="act">有买卖建议</option></select></label>
+    <label class="row" style="margin-top:0"><span>Search rows</span><input id="w-q" placeholder="Ticker, name, sector or text in notes" oninput="renderWatch()" style="flex:1;min-width:200px">
+      <select id="w-f" onchange="renderWatch()"><option value="">All</option><option value="notes">Has notes</option><option value="news">News in last 24h</option><option value="act">Has buy/sell suggestion</option></select></label>
     <div class="muted" id="w-meta"></div>
     <table id="w-table"></table></div>
-  <div class="card"><b>批量粘贴</b>
-    <div class="muted">每行一条，行首写代码或名称，后面写内容，例如 <code>NVDA 财报 11/19，关注数据中心收入</code> 或 <code>Apple	新品发布会</code>（从表格复制的 Tab 分隔也可以）。内容会追加到对应行的笔记后面。</div>
+  <div class="card"><b>Bulk paste</b>
+    <div class="muted">One entry per line: ticker or name first, then the note, e.g. <code>NVDA earnings 11/19, watch data centre revenue</code> or <code>Apple	product launch</code> (tab-separated rows copied from a spreadsheet work too). Each note is appended to that row's notes.</div>
     <textarea id="w-bulk" style="min-height:120px;margin-top:8px"></textarea>
-    <button class="btn primary" onclick="bulkPaste()">追加到对应行</button> <span class="muted" id="w-bulk-out"></span></div>
+    <button class="btn primary" onclick="bulkPaste()">Append to matching rows</button> <span class="muted" id="w-bulk-out"></span></div>
 </section>
 
 <section id="schedule">
-  <h2>时间表（伦敦时间，自动处理冬令时）</h2>
+  <h2>Schedule (London time, daylight saving handled automatically)</h2>
   <div class="card" id="sched-form"></div>
   <div class="card muted">
-    英国 10 月 25 日、美国 11 月 1 日分别回到冬令时。这一周美股是伦敦时间 13:30–20:00，看板会自动按此计算，顶部也会提示。
-    美股节假日不会自动跳过，遇到节假日可以临时关闭"定时推理"。
+    The UK returns to winter time on 25 October and the US on 1 November. During that week US stocks trade 13:30–20:00 London time; the dashboard adjusts automatically and shows a notice at the top.
+    US market holidays are not skipped automatically; on a holiday you can turn off "Scheduled reasoning" for the day.
   </div>
 </section>
 
 <section id="assets">
-  <h2>资产与板块</h2>
-  <div class="card"><div class="muted" style="margin-bottom:8px">勾选"交易"的资产才会进入推理。股票清单本身在 news_bot/config.json 里修改。</div>
+  <h2>Assets and sectors</h2>
+  <div class="card"><div class="muted" style="margin-bottom:8px">Only assets ticked "Trade" go into reasoning. The stock list itself is edited in news_bot/config.json.</div>
     <table id="asset-table"></table>
-    <div style="margin-top:10px"><button class="btn primary" onclick="saveAssets()">保存</button></div></div>
-  <div class="card"><b>事件时效规则</b><div class="muted">标题或摘要出现这些词时归类。两类都没命中时按"12–24 小时后"处理。用逗号分隔。</div>
-    <label class="row"><span>即时影响（几小时内）</span><textarea id="rule-immediate" style="min-height:70px"></textarea></label>
-    <label class="row"><span>12–24 小时后体现</span><textarea id="rule-delayed" style="min-height:70px"></textarea></label>
-    <button class="btn primary" onclick="saveAssets()">保存</button></div>
+    <div style="margin-top:10px"><button class="btn primary" onclick="saveAssets()">Save</button></div></div>
+  <div class="card"><b>Event timing rules</b><div class="muted">A headline or summary containing these words is classified accordingly. If neither matches, it counts as "in 12–24 hours". Separate with commas.</div>
+    <label class="row"><span>Immediate impact (within hours)</span><textarea id="rule-immediate" style="min-height:70px"></textarea></label>
+    <label class="row"><span>Shows up in 12–24 hours</span><textarea id="rule-delayed" style="min-height:70px"></textarea></label>
+    <button class="btn primary" onclick="saveAssets()">Save</button></div>
 </section>
 
 <section id="news">
-  <h2>资讯与 Jev 判断（按资产与板块）</h2>
+  <h2>News and Jev verdicts (by asset and sector)</h2>
   <div class="card">
-    <label class="row" style="margin-top:0"><span>板块 / 资产</span>
+    <label class="row" style="margin-top:0"><span>Sector / asset</span>
       <select id="news-sector" onchange="$('news-asset').value='';renderNews()"></select>
       <select id="news-asset" onchange="renderNews()"></select>
-      <label><input type="checkbox" id="news-trade" onchange="renderNews()"> 只看交易资产</label></label>
-    <label class="row"><span>时间 / 时效 / 关键词</span><select id="news-hours" onchange="loadNews()"><option value="24">24 小时</option><option value="48" selected>48 小时</option><option value="72">72 小时</option></select>
-      <select id="news-hz" onchange="renderNews()"><option value="">全部时效</option><option value="immediate">即时（几小时内）</option><option value="delayed">12–24 小时后</option></select>
-      <input id="news-filter" placeholder="标题关键词" oninput="renderNews()"></label>
+      <label><input type="checkbox" id="news-trade" onchange="renderNews()"> Traded assets only</label></label>
+    <label class="row"><span>Period / timing / keyword</span><select id="news-hours" onchange="loadNews()"><option value="24">24 hours</option><option value="48" selected>48 hours</option><option value="72">72 hours</option></select>
+      <select id="news-hz" onchange="renderNews()"><option value="">All timings</option><option value="immediate">Immediate (within hours)</option><option value="delayed">In 12–24 hours</option></select>
+      <input id="news-filter" placeholder="Headline keyword" oninput="renderNews()"></label>
     <div id="news-sum"></div></div>
   <div id="news-groups"></div>
 </section>
 
 <section id="decisions">
-  <h2>交易建议</h2>
+  <h2>Trade suggestions</h2>
   <div class="card"><select id="dec-pick" onchange="renderDecision()"></select> <span id="dec-meta" class="muted"></span>
-    <button class="btn" style="float:right" onclick="showBrief()">查看资讯包</button></div>
+    <button class="btn" style="float:right" onclick="showBrief()">View news brief</button></div>
   <div class="card"><table id="dec-table"></table></div>
   <div class="card" id="brief-box" style="display:none"><pre id="brief-text"></pre></div>
 </section>
 
 <section id="orders">
-  <h2>下单（手动为主）</h2>
+  <h2>Orders (mainly manual)</h2>
   <div class="card">
-    <label class="row"><span>买 / 卖</span><select id="o-action"><option value="buy">买入</option><option value="sell">卖出</option></select></label>
-    <label class="row"><span>股票（代码，推荐）</span><input id="o-company" placeholder="AAPL"></label>
-    <label class="row"><span>组合</span><input id="o-portfolio"></label>
-    <label class="row"><span>股数（卖出可填 all）</span><input id="o-shares" placeholder="1"></label>
-    <label class="row"><span>或金额（USD）</span><input id="o-amount" placeholder="1000"></label>
+    <label class="row"><span>Buy / sell</span><select id="o-action"><option value="buy">Buy</option><option value="sell">Sell</option></select></label>
+    <label class="row"><span>Stock (ticker recommended)</span><input id="o-company" placeholder="AAPL"></label>
+    <label class="row"><span>Portfolio</span><input id="o-portfolio"></label>
+    <label class="row"><span>Shares (sell can use all)</span><input id="o-shares" placeholder="1"></label>
+    <label class="row"><span>Or amount (USD)</span><input id="o-amount" placeholder="1000"></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn primary" onclick="trade(false)">预览（不下单）</button>
-      <button class="btn danger" onclick="trade(true)">确认提交订单</button>
+      <button class="btn primary" onclick="trade(false)">Preview (no order)</button>
+      <button class="btn danger" onclick="trade(true)">Confirm and submit order</button>
     </div>
-    <p class="muted">预览会打开 Chrome 填好表单但不提交。确认无误后再点"确认提交订单"。下单前请关掉项目上次打开的 Chrome 窗口。</p>
-    <pre id="o-out">尚未操作</pre></div>
-  <div class="card" id="auto-card"><b>自动下单</b> <span id="auto-mode" class="pill"></span>
-    <div class="muted" style="margin:6px 0">比赛页面出来后，先在下面填好比赛组合名称，点"演练一次"：它会打开 UMushroom 把订单填好但不提交，用来验证按钮逻辑和下单流程。确认没问题后才能打开实盘。在此之前所有订单都由你手动确认。</div>
+    <p class="muted">Preview opens Chrome and fills in the form without submitting. When it looks right, click "Confirm and submit order". Close any Chrome window the project opened last time before ordering.</p>
+    <pre id="o-out">Nothing yet</pre></div>
+  <div class="card" id="auto-card"><b>Automatic orders</b> <span id="auto-mode" class="pill"></span>
+    <div class="muted" style="margin:6px 0">Dry run works exactly like live (same picks and limits, several stocks per round, orders really submitted) but in the practice portfolio, leaving the competition portfolio untouched. Once the competition page is out, fill in the competition and practice portfolios, click "Dry run once" or let dry-run mode run a few rounds, and only after a successful submission can live mode be switched on. Until then, competition orders are confirmed by you manually.</div>
     <div id="auto-gate" style="margin:6px 0"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
-      <button class="btn" onclick="autoMode('off')">关闭</button>
-      <button class="btn" onclick="autoMode('dry_run')">演练（只填表，不提交）</button>
-      <button class="btn danger" onclick="autoMode('live')">实盘（自动提交）</button>
+      <button class="btn" onclick="autoMode('off')">Off</button>
+      <button class="btn" onclick="autoMode('dry_run')">Dry run (submits in practice portfolio)</button>
+      <button class="btn danger" onclick="autoMode('live')">Live (submits automatically)</button>
     </div>
     <div id="auto-form"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
-      <button class="btn primary" onclick="saveAuto()">保存限额</button>
-      <span class="muted">演练用的股票代码</span><input id="auto-test-sym" value="AAPL" style="width:90px" title="演练时在比赛组合里试填这只股票的买单（不提交）"> <button class="btn" onclick="autoTest()">演练一次</button>
+      <button class="btn primary" onclick="saveAuto()">Save limits</button>
+      <span class="muted">Ticker for dry run</span><input id="auto-test-sym" value="AAPL" style="width:90px" title="The dry run buys this stock in the practice portfolio (it is submitted)"> <button class="btn" onclick="autoTest()">Dry run once</button>
+      <button class="btn primary" id="auto-now" onclick="autoNow()" title="No need to wait for scheduled reasoning: picks stocks from the latest suggestion like live mode and submits in the practice portfolio">Dry run a round now (latest suggestion)</button>
     </div>
     <pre id="auto-out" style="display:none"></pre>
-    <b style="display:block;margin-top:12px">自动下单记录</b>
+    <b style="display:block;margin-top:12px">Automatic order log</b>
     <table id="auto-ledger"></table>
   </div>
 </section>
 
 <section id="journal">
-  <h2>组合日志</h2>
-  <div class="card muted">来自 trader 的日志页（http://127.0.0.1:6420/），需要先在总览里点"打开 UMushroom 和组合日志"。<a href="http://127.0.0.1:6420/" target="_blank">新窗口打开</a></div>
+  <h2>Portfolio journal</h2>
+  <div class="card muted">The trader's journal page (http://127.0.0.1:6420/). Click "Open UMushroom and portfolio journal" on the Overview tab first. <a href="http://127.0.0.1:6420/" target="_blank">Open in new window</a></div>
   <iframe id="journal-frame" loading="lazy"></iframe>
 </section>
 
 <section id="skill">
-  <h2>Skill 与定时会话提示词</h2>
-  <div class="card"><select id="skill-pick" onchange="loadSkill()"><option value="skill">SKILL.md（Nick 的五点结构）</option><option value="prompt">定时会话提示词</option></select>
-    <button class="btn primary" onclick="saveSkill()">保存</button>
+  <h2>Skill and scheduled-session prompt</h2>
+  <div class="card"><select id="skill-pick" onchange="loadSkill()"><option value="skill">SKILL.md (Nick's five-point structure)</option><option value="prompt">Scheduled-session prompt</option></select>
+    <button class="btn primary" onclick="saveSkill()">Save</button>
     <textarea id="skill-text" style="margin-top:10px"></textarea></div>
 </section>
 
 <section id="logs">
-  <h2>运行日志</h2>
-  <div class="card"><button class="btn" onclick="loadLog()">刷新</button><pre id="log-text"></pre></div>
+  <h2>Run log</h2>
+  <div class="card"><button class="btn" onclick="loadLog()">Refresh</button><pre id="log-text"></pre></div>
 </section>
 
 </main>
@@ -191,8 +192,8 @@ iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;ba
 <div class="toast" id="toast"></div>
 
 <script>
-const TABS=[["overview","总览"],["watch","关注列表"],["schedule","时间表"],["assets","资产与板块"],["news","资讯与 Jev"],["decisions","交易建议"],["orders","下单"],["journal","组合日志"],["skill","Skill / 提示词"],["logs","日志"]];
-const KIND={morning:"早盘推理",intraday:"盘中推理",night:"夜间收集",manual:"手动",reminder_eu:"欧股开盘提醒",reminder_us:"美股开盘提醒"};
+const TABS=[["overview","Overview"],["watch","Watchlist"],["schedule","Schedule"],["assets","Assets & sectors"],["news","News & Jev"],["decisions","Trade suggestions"],["orders","Orders"],["journal","Portfolio journal"],["skill","Skill / prompt"],["logs","Log"]];
+const KIND={morning:"Morning reasoning",intraday:"Intraday reasoning",night:"Overnight collection",manual:"Manual",reminder_eu:"EU open reminder",reminder_us:"US open reminder"};
 let S=null,NEWS=[],DECS=[],ASSETS=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -211,43 +212,47 @@ function show(id){try{localStorage.setItem("tab",id)}catch(e){}
     journal:()=>{if(!$("journal-frame").src)$("journal-frame").src="http://127.0.0.1:6420/"}}[id]||(()=>{}))()}
 
 async function refresh(){S=await get("/api/status");const c=S.clock,h=S.health,r=S.run;
-  $("clock").textContent=`伦敦 ${c.london.slice(11,16)} ${c.london_tz} · 纽约 ${c.new_york}`;
-  $("mkt").innerHTML=`<span class="pill ${c.eu_open_now?"on":"off"}">欧股${c.eu_open_now?"开盘":"收盘"}</span> <span class="pill ${c.us_open_now?"on":"off"}">美股${c.us_open_now?"开盘":"收盘"}</span> <span class="pill">窗口 ${c.window}</span>`;
-  $("dst").textContent=c.dst_note?("⚠ 本周英美时差不是 5 小时，美股为伦敦 "+c.us_open+"–"+c.us_close):"";
-  $("ov-time").innerHTML=kv([["伦敦",c.london+" "+c.london_tz],["纽约",c.new_york],["美股（伦敦时间）",c.us_open+"–"+c.us_close],["推理窗口",c.window+(c.in_window?" · 进行中":"")],["模式",S.settings.market_mode==="eu_us"?"欧股 + 美股":"只美股"]]);
-  const ok=b=>b?'<span class="on">●</span> 正常':'<span class="off">○</span> 未就绪';
-  $("ov-health").innerHTML=kv([["trader 文件夹",ok(h.trader_folder)],["news_bot 文件夹",ok(h.news_bot_folder)],["新闻机器人运行中",ok(h.news_bot_running)],["组合日志页",ok(h.journal_running)],["UMushroom 登录",ok(h.umushroom_login)],["Telegram",ok(h.telegram)],["Jev Key",ok(h.jev)]]);
-  $("ov-run").innerHTML=kv([["定时推理",S.settings.scheduler_enabled?"开":"关"],["正在运行",r.running?(KIND[r.running.kind]+" 自 "+r.running.since):"无"],["上一次",r.last?(KIND[r.last.kind]+" "+r.last.at):"还没有"]])+(r.last_error?`<pre>${esc(r.last_error)}</pre>`:"");
-  $("ov-next").innerHTML="<tr><th>时间</th><th>内容</th></tr>"+S.upcoming.map(u=>`<tr><td>${u.time}</td><td>${KIND[u.kind]||u.kind}</td></tr>`).join("")}
+  $("clock").textContent=`London ${c.london.slice(11,16)} ${c.london_tz} · New York ${c.new_york}`;
+  $("mkt").innerHTML=`<span class="pill ${c.eu_open_now?"on":"off"}">EU ${c.eu_open_now?"open":"closed"}</span> <span class="pill ${c.us_open_now?"on":"off"}">US ${c.us_open_now?"open":"closed"}</span> <span class="pill">Window ${c.window}</span>`;
+  $("dst").textContent=c.dst_note?("⚠ This week the UK–US time gap is not 5 hours; US stocks trade "+c.us_open+"–"+c.us_close+" London time"):"";
+  $("ov-time").innerHTML=kv([["London",c.london+" "+c.london_tz],["New York",c.new_york],["US market (London time)",c.us_open+"–"+c.us_close],["Reasoning window",c.window+(c.in_window?" · active":"")],["Mode",S.settings.market_mode==="eu_us"?"EU + US":"US only"]]);
+  const ok=b=>b?'<span class="on">●</span> OK':'<span class="off">○</span> Not ready';
+  // Telegram: a filled-in key is not enough, show whether the last send actually worked
+  const tg=h=>{const l=h.telegram_last;if(!h.telegram)return ok(false);if(!l)return '<span class="off">●</span> Set, not tested';
+    return l.ok?`<span class="on">●</span> OK <span class="muted">${esc(l.at)}</span>`:`<span class="SELL" title="${esc(l.error)}">●</span> Send failed <span class="muted">${esc(l.at)}</span>`};
+  const tgc=c=>!c?ok(false):c.running?`<span class="on">●</span> Listening @${esc(c.bot)} · ${c.allowed_users} allowed · Model ${(c.providers||[]).length?c.providers.map(x=>x==="qwen"?"Qwen":"Claude").join(" → "):"<span class='warn'>not set</span>"}`+(c.allowed_users?"":" · <span class='warn'>add TELEGRAM_ALLOWED_USERS to .env</span>"):`<span class="off">●</span> Not running <span class="muted">${esc(c.error)}</span>`;
+  $("ov-health").innerHTML=kv([["trader folder",ok(h.trader_folder)],["news_bot folder",ok(h.news_bot_folder)],["News bot running",ok(h.news_bot_running)],["Portfolio journal page",ok(h.journal_running)],["UMushroom login",ok(h.umushroom_login)],["Telegram",tg(h)],["Telegram group commands",tgc(h.tg_commands)],["Jev key",ok(h.jev)]]);
+  $("ov-run").innerHTML=kv([["Scheduled reasoning",S.settings.scheduler_enabled?"On":"Off"],["Running now",r.running?(KIND[r.running.kind]+" since "+r.running.since):"None"],["Last run",r.last?(KIND[r.last.kind]+" "+r.last.at):"None yet"]])+(r.last_error?`<pre>${esc(r.last_error)}</pre>`:"");
+  $("ov-next").innerHTML="<tr><th>Time</th><th>What</th></tr>"+S.upcoming.map(u=>`<tr><td>${u.time}</td><td>${KIND[u.kind]||u.kind}</td></tr>`).join("")}
 const kv=rows=>rows.map(([k,v])=>`<div class="kv"><span class="muted">${k}</span><span>${v}</span></div>`).join("");
 
 function renderSchedule(){if(!S)return;const s=S.settings;
-  const f=[["scheduler_enabled","定时推理","bool"],["market_mode","市场模式","sel",[["eu_us","欧股 + 美股（09:00 到美股收盘前 30 分钟）"],["us","只美股（美股开盘到收盘）"]]],["eu_start","欧股模式开始时间","time"],["eu_us_end_before_us_close_min","欧股模式在美股收盘前几分钟结束","num"],["interval_min","盘中间隔","sel",[[30,"30 分钟"],[60,"60 分钟"]]],["weekdays_only","只在工作日","bool"],["morning_run","早盘推理时间","time"],["night_runs","夜间只收集资讯（逗号分隔）","list"],["telegram_morning","早盘结果发 Telegram","bool"],["telegram_intraday","盘中结果发 Telegram","sel",[["actionable","只有买卖建议时"],["all","每次都发"],["off","不发"]]],["reminders","开盘前提醒","bool"],["reminder_before_min","提前几分钟提醒","num"],["lookback_hours","每次读取多少小时内的资讯","num"],["buy_threshold","买入阈值（价格上涨概率）","prob"],["sell_threshold","卖出阈值（价格下跌概率）","prob"],["min_margin","上涨与下跌概率至少相差","prob"],["default_portfolio","默认组合","text"]];
+  const f=[["scheduler_enabled","Scheduled reasoning","bool"],["market_mode","Market mode","sel",[["eu_us","EU + US (09:00 until 30 min before US close)"],["us","US only (US open to close)"]]],["eu_start","EU mode start time","time"],["eu_us_end_before_us_close_min","EU mode ends this many minutes before US close","num"],["interval_min","Intraday interval","sel",[[30,"30 minutes"],[60,"60 minutes"]]],["weekdays_only","Weekdays only","bool"],["morning_run","Morning reasoning time","time"],["night_runs","Overnight news collection only (comma-separated)","list"],["telegram_morning","Send morning result to Telegram","bool"],["telegram_intraday","Send intraday results to Telegram","sel",[["actionable","Only with buy/sell suggestions"],["all","Every time"],["off","Never"]]],["reminders","Reminder before market open","bool"],["reminder_before_min","Minutes before open to remind","num"],["lookback_hours","Hours of news read per run","num"],["buy_threshold","Buy threshold (probability of price rise)","prob"],["sell_threshold","Sell threshold (probability of price fall)","prob"],["min_margin","Minimum gap between rise and fall probability","prob"],["default_portfolio","Default portfolio","text"]];
   $("sched-form").innerHTML=f.map(([k,l,t,o])=>{const v=s[k];let i;
     if(t==="bool")i=`<input type="checkbox" data-k="${k}" data-t="bool" ${v?"checked":""}>`;
     else if(t==="sel")i=`<select data-k="${k}" data-t="${typeof o[0][0]==="number"?"num":"text"}">${o.map(([a,b])=>`<option value="${a}" ${a==v?"selected":""}>${b}</option>`).join("")}</select>`;
     else if(t==="list")i=`<input data-k="${k}" data-t="list" value="${esc(v.join(", "))}">`;
     else i=`<input data-k="${k}" data-t="${t}" value="${esc(v)}" ${t==="time"?'type="time"':""} style="width:140px">`;
-    return `<label class="row"><span>${l}</span>${i}</label>`}).join("")+`<button class="btn primary" onclick="saveSettings()">保存</button>`}
+    return `<label class="row"><span>${l}</span>${i}</label>`}).join("")+`<button class="btn primary" onclick="saveSettings()">Save</button>`}
 async function saveSettings(){const b={};document.querySelectorAll("#sched-form [data-k]").forEach(e=>{const t=e.dataset.t;let v=e.value;
   if(t==="bool")v=e.checked;else if(t==="num"||t==="prob")v=Number(v);else if(t==="list")v=v.split(",").map(x=>x.trim()).filter(x=>/^\d{1,2}:\d{2}$/.test(x));b[e.dataset.k]=v});
-  await post("/api/settings",b);toast("时间表已保存");await refresh();renderSchedule()}
+  await post("/api/settings",b);toast("Schedule saved");await refresh();renderSchedule()}
 
 async function loadAssets(){ASSETS=await get("/api/assets");
-  $("asset-table").innerHTML="<tr><th>交易</th><th>代码</th><th>名称</th><th>板块</th></tr>"+ASSETS.assets.map((a,i)=>`<tr><td><input type="checkbox" data-i="${i}" ${a.trade?"checked":""}></td><td>${esc(a.symbol)}</td><td>${esc(a.name)}</td><td><input data-s="${i}" value="${esc(a.sector)}"></td></tr>`).join("");
+  $("asset-table").innerHTML="<tr><th>Trade</th><th>Ticker</th><th>Name</th><th>Sector</th></tr>"+ASSETS.assets.map((a,i)=>`<tr><td><input type="checkbox" data-i="${i}" ${a.trade?"checked":""}></td><td>${esc(a.symbol)}</td><td>${esc(a.name)}</td><td><input data-s="${i}" value="${esc(a.sector)}"></td></tr>`).join("");
   $("rule-immediate").value=(ASSETS.horizon_rules.immediate?.keywords||[]).join(", ");
   $("rule-delayed").value=(ASSETS.horizon_rules.delayed?.keywords||[]).join(", ")}
 async function saveAssets(){const rows=ASSETS.assets.map((a,i)=>({symbol:a.symbol,trade:document.querySelector(`[data-i="${i}"]`).checked,sector:document.querySelector(`[data-s="${i}"]`).value}));
   const sp=id=>$(id).value.split(",").map(x=>x.trim()).filter(Boolean);
-  ASSETS=await post("/api/assets",{assets:rows,horizon_rules:{immediate:{keywords:sp("rule-immediate")},delayed:{keywords:sp("rule-delayed")}}});toast("已保存")}
+  ASSETS=await post("/api/assets",{assets:rows,horizon_rules:{immediate:{keywords:sp("rule-immediate")},delayed:{keywords:sp("rule-delayed")}}});toast("Saved")}
 
 let WATCH=[];
-async function loadWatch(){const r=await get("/api/watchlist");WATCH=r.rows;$("w-meta").textContent=r.decision?`买卖建议来自 ${r.decision} 的推理`:"还没有推理结果";renderWatch()}
+async function loadWatch(){const r=await get("/api/watchlist");WATCH=r.rows;$("w-meta").textContent=r.decision?`Buy/sell suggestions from the ${r.decision} reasoning run`:"No reasoning results yet";renderWatch()}
 function renderWatch(){const q=$("w-q").value.trim().toLowerCase(),f=$("w-f").value;
   const rows=WATCH.filter(w=>(!q||[w.symbol,w.name,w.sector,w.notes].join(" ").toLowerCase().includes(q))&&(!f||(f==="notes"&&w.notes)||(f==="news"&&w.news24)||(f==="act"&&w.action&&w.action!=="HOLD")));
-  $("w-table").innerHTML="<tr><th>代码</th><th>名称 / 板块</th><th>24h 资讯</th><th>建议</th><th style=\"width:55%\">笔记（粘贴后点别处自动保存）</th></tr>"+rows.map(w=>`<tr><td><b>${esc(w.symbol)}</b>${w.trade?"":'<div class="muted">只关注</div>'}</td><td>${esc(w.name)}<div class="muted">${esc(w.sector)}</div></td><td>${w.news24||""}</td><td class="${w.action||""}">${w.action?w.action+(w.action!=="HOLD"?" "+pct(w.prob):""):""}</td><td><textarea class="w-notes" data-sym="${esc(w.symbol)}" onchange="saveWatch(this)">${esc(w.notes)}</textarea><div class="muted" style="font-size:12px">${w.updated?"保存于 "+esc(w.updated):""}</div></td></tr>`).join("")||"<tr><td>没有匹配的行</td></tr>"}
+  $("w-table").innerHTML="<tr><th>Ticker</th><th>Name / sector</th><th>24h news</th><th>Suggestion</th><th style=\"width:55%\">Notes (saved when you click elsewhere)</th></tr>"+rows.map(w=>`<tr><td><b>${esc(w.symbol)}</b>${w.trade?"":'<div class="muted">Watch only</div>'}</td><td>${esc(w.name)}<div class="muted">${esc(w.sector)}</div></td><td>${w.news24||""}</td><td class="${w.action||""}">${w.action?w.action+(w.action!=="HOLD"?" "+pct(w.prob):""):""}</td><td><textarea class="w-notes" data-sym="${esc(w.symbol)}" onchange="saveWatch(this)">${esc(w.notes)}</textarea><div class="muted" style="font-size:12px">${w.updated?"Saved "+esc(w.updated):""}</div></td></tr>`).join("")||"<tr><td>No matching rows</td></tr>"}
 async function saveWatch(el){const sym=el.dataset.sym;const r=await post("/api/watchlist",{symbol:sym,notes:el.value});
-  if(r.ok){const w=WATCH.find(x=>x.symbol===sym);w.notes=el.value;w.updated=r.updated;el.nextElementSibling.textContent="保存于 "+r.updated}else toast("保存失败："+(r.error||""))}
+  if(r.ok){const w=WATCH.find(x=>x.symbol===sym);w.notes=el.value;w.updated=r.updated;el.nextElementSibling.textContent="Saved "+r.updated}else toast("Save failed: "+(r.error||""))}
 async function bulkPaste(){let done=0,miss=[],keep=[];const byKey=k=>{k=k.toLowerCase();return WATCH.find(w=>w.symbol.toLowerCase()===k||w.name.toLowerCase()===k)};
   for(const line of $("w-bulk").value.split(/\r?\n/)){const t=line.trim();if(!t)continue;
     let w=null,rest="";const parts=t.split("\t");
@@ -257,64 +262,81 @@ async function bulkPaste(){let done=0,miss=[],keep=[];const byKey=k=>{k=k.toLowe
     if(!w||!rest){miss.push(t.slice(0,30));keep.push(line);continue}
     const notes=(w.notes?w.notes+"\n":"")+rest;const r=await post("/api/watchlist",{symbol:w.symbol,notes});
     if(r.ok){w.notes=notes;w.updated=r.updated;done++}}
-  $("w-bulk-out").textContent=`已追加 ${done} 行`+(miss.length?`；没认出：${miss.join(" / ")}`:"");$("w-bulk").value=keep.join("\n");renderWatch()}
+  $("w-bulk-out").textContent=`Appended ${done} lines`+(miss.length?`; not recognised: ${miss.join(" / ")}`:"");$("w-bulk").value=keep.join("\n");renderWatch()}
 
 async function loadNews(){const [n,a]=await Promise.all([get("/api/news?hours="+$("news-hours").value),ASSETS?ASSETS:get("/api/assets")]);NEWS=n;ASSETS=a;
   const secs=[...new Set(ASSETS.assets.map(x=>x.sector))];const cur=$("news-sector").value;
-  $("news-sector").innerHTML='<option value="">全部板块</option>'+secs.map(x=>`<option ${x===cur?"selected":""}>${esc(x)}</option>`).join("");renderNews()}
+  $("news-sector").innerHTML='<option value="">All sectors</option>'+secs.map(x=>`<option ${x===cur?"selected":""}>${esc(x)}</option>`).join("");renderNews()}
 function horizonOf(t){const low=t.toLowerCase(),R=ASSETS.horizon_rules||{};for(const k of ["immediate","delayed"])if((R[k]?.keywords||[]).some(w=>low.includes(w.toLowerCase())))return k;return "delayed"}
 function newsPick(sym){const a=ASSETS.assets.find(x=>x.symbol===sym);$("news-sector").value=a.sector;renderNews();$("news-asset").value=sym;renderNews()}
 function renderNews(){if(!ASSETS)return;const icon={up:"📈",down:"📉",neutral:"➖"};
   const sec=$("news-sector").value,q=$("news-filter").value.trim().toLowerCase(),hz=$("news-hz").value,tr=$("news-trade").checked;
   const assets=ASSETS.assets.filter(a=>(!sec||a.sector===sec)&&(!tr||a.trade));const curA=$("news-asset").value;
-  $("news-asset").innerHTML='<option value="">全部资产</option>'+assets.map(a=>`<option value="${esc(a.symbol)}" ${a.symbol===curA?"selected":""}>${esc(a.symbol)} ${esc(a.name)}</option>`).join("");
+  $("news-asset").innerHTML='<option value="">All assets</option>'+assets.map(a=>`<option value="${esc(a.symbol)}" ${a.symbol===curA?"selected":""}>${esc(a.symbol)} ${esc(a.name)}</option>`).join("");
   const asel=$("news-asset").value;const shown=assets.filter(a=>!asel||a.symbol===asel);
   const by={},seen=new Set();for(const n of NEWS){n.hz=n.hz||horizonOf(n.title);if((hz&&n.hz!==hz)||(q&&!n.title.toLowerCase().includes(q)))continue;const key=n.symbol+"|"+n.title.toLowerCase();if(seen.has(key))continue;seen.add(key);(by[n.symbol]=by[n.symbol]||[]).push(n)}
-  const stat=list=>{const up=list.filter(n=>n.jev_label==="up").length,dn=list.filter(n=>n.jev_label==="down").length;return `${list.length} 条 · 📈${up} 📉${dn}`};
+  const stat=list=>{const up=list.filter(n=>n.jev_label==="up").length,dn=list.filter(n=>n.jev_label==="down").length;return `${list.length} items · 📈${up} 📉${dn}`};
   const sectors=[...new Set(shown.map(a=>a.sector))];
   $("news-sum").innerHTML=sectors.map(sc=>{const as=shown.filter(a=>a.sector===sc);const all=as.flatMap(a=>by[a.symbol]||[]);
     return `<div class="kv"><span><b>${esc(sc)}</b> <span class="muted">${stat(all)}</span></span><span>${as.map(a=>`<button class="btn" style="padding:2px 8px;margin:2px" onclick="newsPick('${esc(a.symbol)}')">${esc(a.symbol)} ${(by[a.symbol]||[]).length}</button>`).join("")}</span></div>`}).join("");
   $("news-groups").innerHTML=sectors.map(sc=>{const as=shown.filter(a=>a.sector===sc&&(by[a.symbol]||[]).length);if(!as.length)return "";
-    return `<div class="card"><h2 style="margin-bottom:6px">${esc(sc)}</h2>`+as.map(a=>`<div style="margin-top:10px"><b>${esc(a.symbol)}</b> ${esc(a.name)} ${a.trade?"":'<span class="pill">只关注</span>'} <span class="muted">${stat(by[a.symbol])}</span>
-      <table>${by[a.symbol].map(n=>`<tr><td class="muted nowrap" style="width:110px">${esc((n.published||"").slice(5,16).replace("T"," "))}</td><td><a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a> <span class="pill">${esc(n.tag)}</span> <span class="pill">${n.hz==="immediate"?"即时":"12–24h"}</span></td><td class="nowrap" style="width:110px">${n.jev_label?icon[n.jev_label]+" "+pct(n.jev_prob)+(n.jev_impact>=1.34?" ❗":""):""}</td></tr>`).join("")}</table></div>`).join("")+"</div>"}).join("")||'<div class="card muted">所选范围内没有资讯</div>'}
+    return `<div class="card"><h2 style="margin-bottom:6px">${esc(sc)}</h2>`+as.map(a=>`<div style="margin-top:10px"><b>${esc(a.symbol)}</b> ${esc(a.name)} ${a.trade?"":'<span class="pill">Watch only</span>'} <span class="muted">${stat(by[a.symbol])}</span>
+      <table>${by[a.symbol].map(n=>`<tr><td class="muted nowrap" style="width:110px">${esc((n.published||"").slice(5,16).replace("T"," "))}</td><td><a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a> <span class="pill">${esc(n.tag)}</span> <span class="pill">${n.hz==="immediate"?"Immediate":"12–24h"}</span></td><td class="nowrap" style="width:110px">${n.jev_label?icon[n.jev_label]+" "+pct(n.jev_prob)+(n.jev_impact>=1.34?" ❗":""):""}</td></tr>`).join("")}</table></div>`).join("")+"</div>"}).join("")||'<div class="card muted">No news in the selected range</div>'}
 
 async function loadDecisions(){DECS=await get("/api/decisions");
-  $("dec-pick").innerHTML=DECS.map((d,i)=>`<option value="${i}">${d.london} · ${KIND[d.kind]||d.kind}${d.engine==="claude"?" · Claude":""}</option>`).join("")||"<option>还没有推理结果</option>";renderDecision()}
-function bar(p){return `<div class="bar" title="涨 ${pct(p.rise)} / 平 ${pct(p.flat)} / 跌 ${pct(p.down)}"><i style="width:${p.rise*100}%;background:var(--up)"></i><i style="width:${p.flat*100}%;background:var(--line)"></i><i style="width:${p.down*100}%;background:var(--down)"></i></div>`}
+  $("dec-pick").innerHTML=DECS.map((d,i)=>`<option value="${i}">${d.london} · ${KIND[d.kind]||d.kind}${d.engine==="claude"?" · Claude":""}</option>`).join("")||"<option>No reasoning results yet</option>";renderDecision()}
+function bar(p){return `<div class="bar" title="Rise ${pct(p.rise)} / flat ${pct(p.flat)} / fall ${pct(p.down)}"><i style="width:${p.rise*100}%;background:var(--up)"></i><i style="width:${p.flat*100}%;background:var(--line)"></i><i style="width:${p.down*100}%;background:var(--down)"></i></div>`}
 function renderDecision(){const d=DECS[$("dec-pick").value];if(!d){$("dec-table").innerHTML="";$("dec-meta").textContent="";return}
-  $("dec-meta").textContent=`引擎：${d.engine==="jev"?"Jev":d.engine==="claude"?"Claude":"文章平均（未配置 Jev Key）"} · Telegram：${d.telegram?"已发送":"未发送"}`+(d.auto?` · 自动下单（${MODE[d.auto.mode]}）：${d.auto.done.length} 笔`:"");
-  $("dec-table").innerHTML="<tr><th>建议</th><th>代码</th><th>概率</th><th>时效</th><th>未来几小时</th><th>12–24 小时</th><th>依据</th><th></th></tr>"+d.rows.map(r=>`<tr><td class="${r.action}">${r.action}</td><td>${esc(r.symbol)}<div class="muted">${esc(r.sector)}</div></td><td>${r.action==='HOLD'?'':pct(r.prob)}</td><td style="white-space:nowrap">${r.horizon==="hours"?"几小时":r.horizon==="day"?"12–24h":""}</td><td>${bar(r.probs.hours)}</td><td>${bar(r.probs.day)}</td><td>${(r.why?`<div>${esc(r.why)}</div>`:"")+r.top.map(t=>`<div><a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(t.title)}</a> <span class="muted">${t.horizon==="immediate"?"即时":"滞后"}</span></div>`).join("")}</td><td class="nowrap">${r.action!=="HOLD"?`<button class="btn" onclick="toOrder('${r.action}','${esc(r.symbol)}')">去下单</button>`:""}</td></tr>`).join("")}
-async function showBrief(){const d=DECS[$("dec-pick").value];if(!d)return;const b=await get("/api/brief?id="+d.brief);$("brief-box").style.display="block";$("brief-text").textContent=b.text||"找不到资讯包"}
+  $("dec-meta").textContent=`Engine: ${d.engine==="jev"?"Jev":d.engine==="claude"?"Claude":"Article average (no Jev key)"} · Telegram: ${d.telegram?"sent":"not sent"}`+(d.auto?` · Automatic orders (${MODE[d.auto.mode]}): ${d.auto.done.length}`:"");
+  $("dec-table").innerHTML="<tr><th>Suggestion</th><th>Ticker</th><th>Probability</th><th>Timing</th><th>Next few hours</th><th>12–24 hours</th><th>Reasons</th><th></th></tr>"+d.rows.map(r=>`<tr><td class="${r.action}">${r.action}</td><td>${esc(r.symbol)}<div class="muted">${esc(r.sector)}</div></td><td>${r.action==='HOLD'?'':pct(r.prob)}</td><td style="white-space:nowrap">${r.horizon==="hours"?"Hours":r.horizon==="day"?"12–24h":""}</td><td>${bar(r.probs.hours)}</td><td>${bar(r.probs.day)}</td><td>${(r.why?`<div>${esc(r.why)}</div>`:"")+r.top.map(t=>`<div><a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(t.title)}</a> <span class="muted">${t.horizon==="immediate"?"Immediate":"Delayed"}</span></div>`).join("")}</td><td class="nowrap">${r.action!=="HOLD"?`<button class="btn" onclick="toOrder('${r.action}','${esc(r.symbol)}')">Go to order</button>`:""}</td></tr>`).join("")}
+async function showBrief(){const d=DECS[$("dec-pick").value];if(!d)return;const b=await get("/api/brief?id="+d.brief);$("brief-box").style.display="block";$("brief-text").textContent=b.text||"News brief not found"}
 function toOrder(a,sym){$("o-action").value=a==="BUY"?"buy":"sell";$("o-company").value=sym;$("o-portfolio").value=S.settings.default_portfolio;$("o-shares").value=a==="SELL"?"all":"";show("orders")}
 async function trade(submit){const b={action:$("o-action").value,company:$("o-company").value,portfolio:$("o-portfolio").value,shares:$("o-shares").value,amount:$("o-amount").value,submit};
-  if(submit&&!confirm(`确认${b.action==="buy"?"买入":"卖出"} ${b.company}（${b.shares||("$"+b.amount)}）并提交到 UMushroom？`))return;
-  $("o-out").textContent=(submit?"正在提交…":"正在预览…")+" Chrome 会弹出，请稍等";const r=await post("/api/trade",b);$("o-out").textContent=(r.ok?"✅ ":"❌ ")+r.output}
+  if(submit&&!confirm(`${b.action==="buy"?"Buy":"Sell"} ${b.company} (${b.shares||("$"+b.amount)}) and submit to UMushroom?`))return;
+  $("o-out").textContent=(submit?"Submitting…":"Previewing…")+" Chrome will open, please wait";const r=await post("/api/trade",b);$("o-out").textContent=(r.ok?"✅ ":"❌ ")+r.output}
 
-let AUTO=null;const MODE={off:"关闭",dry_run:"演练",live:"实盘"};
-const OLD_SERVER="看板后台还是旧版本，不认识自动下单功能。请关掉 UKIC Hub 的黑色窗口，再双击 start_hub.bat 重新启动。";
-async function loadAuto(){const r=await get("/api/autotrade");if(!r.settings){$("auto-gate").innerHTML=`<span class="warn">${OLD_SERVER}</span>`;$("auto-mode").textContent="未加载";return}AUTO=r;renderAuto()}
+let AUTO=null;const MODE={off:"Off",dry_run:"Dry run",live:"Live"};
+const OLD_SERVER="The dashboard server is an old version and doesn't know automatic orders. Close the UKIC Hub window and double-click start_hub.bat to restart it.";
+async function loadAuto(){const r=await get("/api/autotrade");if(!r.settings){$("auto-gate").innerHTML=`<span class="warn">${OLD_SERVER}</span>`;$("auto-mode").textContent="Not loaded";return}AUTO=r;renderAuto()}
 function renderAuto(){const s=AUTO.settings;
-  $("auto-mode").textContent=MODE[s.auto_mode];$("auto-mode").className="pill "+(s.auto_mode==="live"?"SELL":s.auto_mode==="dry_run"?"on":"off");
-  $("auto-gate").innerHTML=AUTO.can_go_live?`<span class="on">✓ 可以开启实盘</span>：最近一次成功演练 ${esc(AUTO.last_good_dry_run)}`:`<span class="warn">实盘还不能开启：${esc(AUTO.why_not)}</span>`;
-  const f=[["auto_portfolio","比赛组合名称（UMushroom 上的名字）","text"],["auto_min_prob","Jev 概率至少","num"],["auto_amount_usd","每笔买入金额（USD）","num"],["auto_sell","卖出数量（all 或股数）","text"],["auto_max_per_run","每轮最多几笔","num"],["auto_max_per_day","每天最多几笔","num"],["auto_cooldown_hours","同一只股票间隔（小时）","num"],["auto_us_only","只做美股代码","bool"],["auto_headless","不弹出 Chrome 窗口","bool"]];
+  $("auto-mode").textContent=MODE[s.auto_mode];$("auto-now").disabled=!!AUTO.running_now;$("auto-now").textContent=AUTO.running_now?"Dry run in progress…":"Dry run a round now (latest suggestion)";$("auto-mode").className="pill "+(s.auto_mode==="live"?"SELL":s.auto_mode==="dry_run"?"on":"off");
+  $("auto-gate").innerHTML=AUTO.can_go_live?`<span class="on">✓ Live mode can be switched on</span>: last successful dry run ${esc(AUTO.last_good_dry_run)}`:`<span class="warn">Live mode can't be switched on yet: ${esc(AUTO.why_not)}</span>`;
+  const f=[["auto_portfolio","Competition portfolio name (live)","text"],["auto_practice_portfolio","Practice portfolio name (dry run, submits)","text"],["auto_min_prob","Minimum Jev probability","num"],["auto_amount_usd","Amount per buy (USD)","num"],["auto_sell","Sell size (all or shares)","text"],["auto_max_per_run","Max orders per round","num"],["auto_max_per_day","Max orders per day","num"],["auto_cooldown_hours","Hours between orders for the same stock","num"],["auto_us_only","US tickers only","bool"],["auto_headless","Hide the Chrome window","bool"]];
   $("auto-form").innerHTML=f.map(([k,l,t])=>`<label class="row"><span>${l}</span>${t==="bool"?`<input type="checkbox" data-a="${k}" data-t="bool" ${s[k]?"checked":""}>`:`<input data-a="${k}" data-t="${t}" value="${esc(s[k])}" style="width:${t==="text"?"260px":"120px"}">`}</label>`).join("")+
-    `<label class="row"><span>哪些推理可以下单</span>${["morning","intraday"].map(k=>`<label><input type="checkbox" data-kind="${k}" ${s.auto_run_kinds.includes(k)?"checked":""}> ${KIND[k]}</label>`).join(" ")}</label>`;
-  $("auto-ledger").innerHTML="<tr><th>时间</th><th>档位</th><th>操作</th><th>结果</th><th>来源</th></tr>"+AUTO.ledger.map(r=>`<tr><td class="nowrap">${esc(r.time)}</td><td>${MODE[r.mode]||r.mode}</td><td class="${r.action}">${r.action} ${esc(r.symbol)} ${r.amount?"$"+esc(r.amount):esc(r.shares)+" 股"}${r.prob?" · "+pct(r.prob):""}</td><td>${r.ok?"✅":"❌"}${r.submitted===true?" 已提交":r.submitted==="unknown"?" ⚠ 未确认，请到 UMushroom 检查":" 未提交"}</td><td class="muted">${r.decision==="test"?"手动演练":esc(r.decision)}</td></tr>`).join("")||"<tr><td class='muted'>还没有记录</td></tr>"}
-async function saveAuto(){if(!AUTO){toast(OLD_SERVER);return}const b={};document.querySelectorAll("[data-a]").forEach(e=>{const t=e.dataset.t;b[e.dataset.a]=t==="bool"?e.checked:t==="num"?Number(e.value):e.value.trim()});
+    `<label class="row"><span>Which runs may place orders</span>${["morning","intraday"].map(k=>`<label><input type="checkbox" data-kind="${k}" ${s.auto_run_kinds.includes(k)?"checked":""}> ${KIND[k]}</label>`).join(" ")}</label>`;
+  $("auto-ledger").innerHTML="<tr><th>Time</th><th>Mode</th><th>Action</th><th>Result</th><th>Source</th></tr>"+AUTO.ledger.map(r=>`<tr><td class="nowrap">${esc(r.time)}</td><td>${MODE[r.mode]||r.mode}<div class="muted">${esc(r.portfolio||"")}</div></td><td class="${r.action}">${r.action} ${esc(r.symbol)} ${r.amount?"$"+esc(r.amount):esc(r.shares)+" shares"}${r.prob?" · "+pct(r.prob):""}</td><td>${r.ok?"✅":"❌"}${r.submitted===true?" Submitted":r.submitted==="unknown"?" ⚠ Not confirmed, check UMushroom":" Not submitted"}</td><td class="muted">${r.decision==="test"?"Manual dry run":esc(r.decision)}</td></tr>`).join("")||"<tr><td class='muted'>No records yet</td></tr>"}
+async function saveAuto(quiet){if(!AUTO){toast(OLD_SERVER);return false}const b={};document.querySelectorAll("[data-a]").forEach(e=>{const t=e.dataset.t;b[e.dataset.a]=t==="bool"?e.checked:t==="num"?Number(e.value):e.value.trim()});
   b.auto_run_kinds=[...document.querySelectorAll("[data-kind]")].filter(e=>e.checked).map(e=>e.dataset.kind);
-  const r=await post("/api/autotrade/settings",b);if(r.error){toast("保存失败："+r.error);return}AUTO=r;renderAuto();toast("限额已保存")}
+  const r=await post("/api/autotrade/settings",b);if(r.error){toast("Save failed: "+r.error);return false}AUTO=r;renderAuto();if(!quiet)toast("Limits saved");return true}
 async function autoMode(m){if(!AUTO){toast(OLD_SERVER);return}let confirmText;
-  if(m==="live"){confirmText=prompt("实盘会在推理后自动提交订单（限额见下方）。确认请输入 LIVE");if(confirmText!=="LIVE")return}
-  const r=await post("/api/autotrade/mode",{mode:m,confirm:confirmText});if(!r.ok){toast(r.error||"切换失败");return}AUTO=r.state;renderAuto();toast("自动下单："+MODE[m])}
-async function autoTest(){$("auto-out").style.display="block";$("auto-out").textContent="正在演练… Chrome 会打开并填好订单，但不会提交";
+  if(m==="dry_run"&&!confirm("After each reasoning run, dry run submits orders automatically like live mode, but only in the practice portfolio \""+(AUTO.settings.auto_practice_portfolio||"(not set)")+"\". Continue?"))return;
+  if(m==="live"){confirmText=prompt("Live mode submits orders automatically after each reasoning run (limits below). Type LIVE to confirm");if(confirmText!=="LIVE")return}
+  const r=await post("/api/autotrade/mode",{mode:m,confirm:confirmText});if(!r.ok){toast(r.error||"Switch failed");return}AUTO=r.state;renderAuto();toast("Automatic orders: "+MODE[m])}
+let AUTO_POLL=null;
+async function autoNow(){if(!AUTO){toast(OLD_SERVER);return}
+  if(!(await saveAuto(true)))return;
+  const p=AUTO.settings.auto_practice_portfolio;if(!p){toast("Enter the practice portfolio name first");return}
+  if(!confirm("Using the latest trade suggestion, pick stocks like live mode (at most "+AUTO.settings.auto_max_per_run+" per round) and really submit them in the practice portfolio \""+p+"\". Continue?"))return;
+  const r=await post("/api/autotrade/run_latest",{});if(r.error==="not found"){toast(OLD_SERVER);return}
+  if(!r.ok){toast(r.error||"Could not start");return}
+  $("auto-out").style.display="block";$("auto-out").textContent=`Dry-running the ${r.london} suggestion… Chrome will open for each order; results appear in the log below`;
+  AUTO=r.state;renderAuto();clearInterval(AUTO_POLL);
+  AUTO_POLL=setInterval(async()=>{const s=await get("/api/autotrade");if(!s.settings)return;AUTO=s;renderAuto();
+    if(!s.running_now){clearInterval(AUTO_POLL);$("auto-out").textContent="✅ This dry-run round is finished; see the log below (no orders means no stock met the limits)"}},5000)}
+async function autoTest(){$("auto-out").style.display="block";
+  if(!AUTO){$("auto-out").textContent="❌ "+OLD_SERVER;return}
+  if(!(await saveAuto(true)))return;  // use what is typed in the form, even if "Save limits" was not clicked
+  if(!AUTO.settings.auto_practice_portfolio){$("auto-out").textContent="❌ Enter the practice portfolio name above first (the UMushroom portfolio name, e.g. First Portfolio; not the competition one).";return}
+  if(!confirm("The dry run will really buy "+$("auto-test-sym").value+" in the practice portfolio \""+AUTO.settings.auto_practice_portfolio+"\" (amount: Amount per buy above). Continue?"))return;
+  $("auto-out").textContent="Dry run in progress… Chrome will open and submit an order in the practice portfolio";
   const r=await post("/api/autotrade/test",{symbol:$("auto-test-sym").value});
   if(r.error==="not found"){$("auto-out").textContent="❌ "+OLD_SERVER;return}
-  $("auto-out").textContent=(r.ok?"✅ 演练成功，表单已正确填好（未提交）\n":"❌ 演练失败\n")+(r.output||r.error||"");if(r.state){AUTO=r.state;renderAuto()}}
+  $("auto-out").textContent=(r.ok&&r.submitted===true?"✅ Dry run succeeded, the order was submitted in the practice portfolio\n":r.submitted==="unknown"?"⚠ Sent but not confirmed, check the practice portfolio on UMushroom\n":"❌ Dry run failed\n")+(r.output||r.error||"");if(r.state){AUTO=r.state;renderAuto()}}
 
 async function loadSkill(){const r=await get("/api/skill?name="+$("skill-pick").value);$("skill-text").value=r.text||""}
-async function saveSkill(){await post("/api/skill",{name:$("skill-pick").value,text:$("skill-text").value});toast("已保存")}
+async function saveSkill(){await post("/api/skill",{name:$("skill-pick").value,text:$("skill-text").value});toast("Saved")}
 async function loadLog(){const r=await get("/api/log");$("log-text").textContent=r.text;$("log-text").scrollTop=1e9}
-async function runNow(kind){const r=await post("/api/run",{kind});toast(r.started?"已开始，大约一分钟后在“交易建议”里查看":"上一次推理还没结束");refresh()}
+async function runNow(kind){const r=await post("/api/run",{kind});toast(r.started?"Started. Check \"Trade suggestions\" in about a minute":"The previous reasoning run hasn't finished yet");refresh()}
 async function launch(what){const r=await post("/api/launch",{what});toast(r.output)}
 
 window.addEventListener("load",async()=>{await refresh();nav();$("o-portfolio").value=S.settings.default_portfolio;setInterval(refresh,15000)});

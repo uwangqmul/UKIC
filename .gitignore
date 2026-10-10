@@ -23,3 +23,6 @@ hub/data/briefs/
 hub/data/decisions/
 __pycache__/
 *.pyc
+hub/data/tg_orders.jsonl
+hub/data/tg_offset.json
+hub/data/telegram_status.json

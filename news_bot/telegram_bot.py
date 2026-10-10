@@ -20,8 +20,9 @@ API = f"https://api.telegram.org/bot{TOKEN}"
 
 
 def _require_token():
+    # Raise (not sys.exit) so the news bot keeps collecting news when Telegram is not set up yet
     if not TOKEN:
-        sys.exit("TELEGRAM_BOT_TOKEN is missing: run setup_telegram.bat (or copy .env.example to .env and fill it in)")
+        raise RuntimeError("TELEGRAM_BOT_TOKEN is missing: run setup_telegram.bat (or copy .env.example to .env and fill it in)")
 
 
 def get_chat_ids():
