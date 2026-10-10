@@ -1,4 +1,4 @@
-> 看板、时间表、资讯机器人和 Jev 推理流水线见 [UKIC_HUB.md](UKIC_HUB.md)（`hub/`、`news_bot/`、`start_hub.bat`）。
+> The dashboard, schedule, news bot, Jev reasoning pipeline and Telegram group commands are described in [UKIC_HUB.md](UKIC_HUB.md) (`hub/`, `news_bot/`, `start_hub.bat`).
 
 # UMushroom MCP Browser Example
 
