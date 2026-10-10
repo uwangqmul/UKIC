@@ -9,17 +9,3 @@ node_modules/
 reports/
 logs/
 .explore/
-
-# UKIC Hub (news_bot + hub)
-.env
-**/.env
-*.db
-*.log
-news_bot/dashboard.html
-hub/data/settings.json
-hub/data/watchlist.json
-hub/data/auto_trades.jsonl
-hub/data/briefs/
-hub/data/decisions/
-__pycache__/
-*.pyc
