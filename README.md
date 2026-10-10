@@ -20,6 +20,74 @@ UKIC_Hub\
 └─ install_autostart_hub.bat  optional: start at login (undo with remove_autostart_hub.bat)
 ```
 
+## Screenshots
+
+Taken on 11 October 2026 after a manual reasoning run ("Run reasoning now"). Jev scored 31 assets with news and suggested 11 BUYs and 4 SELLs; the result went to Telegram. Automatic orders were off, so nothing was ordered.
+
+### Overview
+
+Clock and market windows, the status of every part (trader, news bot, UMushroom sign-in, Telegram, group commands, Jev), and the coming schedule.
+
+![Overview](docs/screenshots/01-overview.png)
+
+### Trade suggestions
+
+Each traded asset with its suggestion, Jev probability, the "next few hours" and "12–24 hours" probability bars (green rise, grey flat, red fall), and the headlines behind it. "Go to order" fills in the order form.
+
+![Trade suggestions](docs/screenshots/02-trade-suggestions.png)
+
+### News and Jev verdicts
+
+News by sector and asset, with Jev's direction and confidence for each headline and whether it acts within hours or in 12–24 hours.
+
+![News and Jev](docs/screenshots/03-news-and-jev.png)
+
+### Watchlist
+
+Every followed stock with its 24-hour news count, the latest suggestion and your own notes (bulk paste supported).
+
+![Watchlist](docs/screenshots/04-watchlist.png)
+
+### Schedule
+
+All timings and thresholds, in London time.
+
+![Schedule](docs/screenshots/05-schedule.png)
+
+### Orders
+
+Manual orders (preview first, then submit) and the automatic-order panel with its limits. Automatic orders are off.
+
+![Orders](docs/screenshots/06-orders.png)
+
+### Telegram: reasoning result
+
+What the club group receives after a reasoning run.
+
+![Telegram reasoning result](docs/screenshots/07-telegram-reasoning.jpg)
+
+### Telegram: bot guide
+
+`/help` in the group; this message is pinned as the group's guide.
+
+![Telegram bot guide](docs/screenshots/08-telegram-help.jpg)
+
+### Order commands
+
+How the bot reads group messages (output of the order parser in `hub/tg_commands.py`). Every order is repeated back and only submitted after the sender replies "yes".
+
+| Message in the group | Bot's reply |
+|---|---|
+| `/buy AAPL $5000 in First Portfolio` | Please confirm: BUY AAPL $5000, portfolio: First Portfolio |
+| `@wz_stock_alert_bot buy Apple` | Please confirm: BUY Apple $10000, portfolio: First Portfolio |
+| `@wz_stock_alert_bot 买 苹果` | Please confirm: BUY AAPL $10000, portfolio: First Portfolio |
+| `/sell TSLA all in First Portfolio` | Please confirm: SELL TSLA all shares, portfolio: First Portfolio |
+| `/sell TSLA` | Can't place this order: Please give a number of shares (e.g. 100 shares) or an amount (e.g. $5000). |
+
+### Trader tests
+
+`npm test` in `trader\` (local mock pages, no real orders): 72 tests, 70 passed, 0 failed, 2 skipped (the two that need a real UMushroom sign-in).
+
 ## First run
 
 1. Close the Stock News Bot window, any Chrome window the project opened, and any VS Code / PyCharm window open on the two folders.
