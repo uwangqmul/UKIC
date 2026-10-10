@@ -160,7 +160,7 @@ iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;ba
     <div id="auto-form"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
       <button class="btn primary" onclick="saveAuto()">保存限额</button>
-      <input id="auto-test-sym" value="AAPL" style="width:90px"> <button class="btn" onclick="autoTest()">演练一次</button>
+      <span class="muted">演练用的股票代码</span><input id="auto-test-sym" value="AAPL" style="width:90px" title="演练时在比赛组合里试填这只股票的买单（不提交）"> <button class="btn" onclick="autoTest()">演练一次</button>
     </div>
     <pre id="auto-out" style="display:none"></pre>
     <b style="display:block;margin-top:12px">自动下单记录</b>
@@ -291,7 +291,8 @@ async function trade(submit){const b={action:$("o-action").value,company:$("o-co
   $("o-out").textContent=(submit?"正在提交…":"正在预览…")+" Chrome 会弹出，请稍等";const r=await post("/api/trade",b);$("o-out").textContent=(r.ok?"✅ ":"❌ ")+r.output}
 
 let AUTO=null;const MODE={off:"关闭",dry_run:"演练",live:"实盘"};
-async function loadAuto(){AUTO=await get("/api/autotrade");renderAuto()}
+const OLD_SERVER="看板后台还是旧版本，不认识自动下单功能。请关掉 UKIC Hub 的黑色窗口，再双击 start_hub.bat 重新启动。";
+async function loadAuto(){const r=await get("/api/autotrade");if(!r.settings){$("auto-gate").innerHTML=`<span class="warn">${OLD_SERVER}</span>`;$("auto-mode").textContent="未加载";return}AUTO=r;renderAuto()}
 function renderAuto(){const s=AUTO.settings;
   $("auto-mode").textContent=MODE[s.auto_mode];$("auto-mode").className="pill "+(s.auto_mode==="live"?"SELL":s.auto_mode==="dry_run"?"on":"off");
   $("auto-gate").innerHTML=AUTO.can_go_live?`<span class="on">✓ 可以开启实盘</span>：最近一次成功演练 ${esc(AUTO.last_good_dry_run)}`:`<span class="warn">实盘还不能开启：${esc(AUTO.why_not)}</span>`;
@@ -299,14 +300,16 @@ function renderAuto(){const s=AUTO.settings;
   $("auto-form").innerHTML=f.map(([k,l,t])=>`<label class="row"><span>${l}</span>${t==="bool"?`<input type="checkbox" data-a="${k}" data-t="bool" ${s[k]?"checked":""}>`:`<input data-a="${k}" data-t="${t}" value="${esc(s[k])}" style="width:${t==="text"?"260px":"120px"}">`}</label>`).join("")+
     `<label class="row"><span>哪些推理可以下单</span>${["morning","intraday"].map(k=>`<label><input type="checkbox" data-kind="${k}" ${s.auto_run_kinds.includes(k)?"checked":""}> ${KIND[k]}</label>`).join(" ")}</label>`;
   $("auto-ledger").innerHTML="<tr><th>时间</th><th>档位</th><th>操作</th><th>结果</th><th>来源</th></tr>"+AUTO.ledger.map(r=>`<tr><td class="nowrap">${esc(r.time)}</td><td>${MODE[r.mode]||r.mode}</td><td class="${r.action}">${r.action} ${esc(r.symbol)} ${r.amount?"$"+esc(r.amount):esc(r.shares)+" 股"}${r.prob?" · "+pct(r.prob):""}</td><td>${r.ok?"✅":"❌"}${r.submitted===true?" 已提交":r.submitted==="unknown"?" ⚠ 未确认，请到 UMushroom 检查":" 未提交"}</td><td class="muted">${r.decision==="test"?"手动演练":esc(r.decision)}</td></tr>`).join("")||"<tr><td class='muted'>还没有记录</td></tr>"}
-async function saveAuto(){const b={};document.querySelectorAll("[data-a]").forEach(e=>{const t=e.dataset.t;b[e.dataset.a]=t==="bool"?e.checked:t==="num"?Number(e.value):e.value.trim()});
+async function saveAuto(){if(!AUTO){toast(OLD_SERVER);return}const b={};document.querySelectorAll("[data-a]").forEach(e=>{const t=e.dataset.t;b[e.dataset.a]=t==="bool"?e.checked:t==="num"?Number(e.value):e.value.trim()});
   b.auto_run_kinds=[...document.querySelectorAll("[data-kind]")].filter(e=>e.checked).map(e=>e.dataset.kind);
   const r=await post("/api/autotrade/settings",b);if(r.error){toast("保存失败："+r.error);return}AUTO=r;renderAuto();toast("限额已保存")}
-async function autoMode(m){let confirmText;
+async function autoMode(m){if(!AUTO){toast(OLD_SERVER);return}let confirmText;
   if(m==="live"){confirmText=prompt("实盘会在推理后自动提交订单（限额见下方）。确认请输入 LIVE");if(confirmText!=="LIVE")return}
   const r=await post("/api/autotrade/mode",{mode:m,confirm:confirmText});if(!r.ok){toast(r.error||"切换失败");return}AUTO=r.state;renderAuto();toast("自动下单："+MODE[m])}
 async function autoTest(){$("auto-out").style.display="block";$("auto-out").textContent="正在演练… Chrome 会打开并填好订单，但不会提交";
-  const r=await post("/api/autotrade/test",{symbol:$("auto-test-sym").value});$("auto-out").textContent=(r.ok?"✅ 演练成功，表单已正确填好（未提交）\n":"❌ 演练失败\n")+(r.output||r.error||"");if(r.state){AUTO=r.state;renderAuto()}}
+  const r=await post("/api/autotrade/test",{symbol:$("auto-test-sym").value});
+  if(r.error==="not found"){$("auto-out").textContent="❌ "+OLD_SERVER;return}
+  $("auto-out").textContent=(r.ok?"✅ 演练成功，表单已正确填好（未提交）\n":"❌ 演练失败\n")+(r.output||r.error||"");if(r.state){AUTO=r.state;renderAuto()}}
 
 async function loadSkill(){const r=await get("/api/skill?name="+$("skill-pick").value);$("skill-text").value=r.text||""}
 async function saveSkill(){await post("/api/skill",{name:$("skill-pick").value,text:$("skill-text").value});toast("已保存")}

@@ -60,10 +60,10 @@ def last_good_dry_run(portfolio):
 def can_go_live(settings=None):
     s = settings or load_settings()
     if not s["auto_portfolio"].strip():
-        return False, "Set the competition portfolio name first."
+        return False, "请先填写比赛组合名称，并点\"保存限额\"。"
     if not last_good_dry_run(s["auto_portfolio"]):
-        return False, (f"No successful dry run in \"{s['auto_portfolio']}\" in the last {DRY_RUN_VALID_DAYS} days. "
-                       "Run a dry run first (Orders tab: 演练一次) and check it filled the form correctly.")
+        return False, (f"比赛组合“{s['auto_portfolio']}”最近 {DRY_RUN_VALID_DAYS} 天没有成功的演练。"
+                       "请先点“演练一次”，确认它在比赛组合里正确填好了订单。")
     return True, ""
 
 
@@ -83,7 +83,7 @@ def test_dry_run(symbol="AAPL"):
     """Fill in (never submit) a BUY in the competition portfolio to check the page still works."""
     s = load_settings()
     if not s["auto_portfolio"].strip():
-        return {"ok": False, "submitted": False, "output": "Set the competition portfolio name first."}
+        return {"ok": False, "submitted": False, "output": "请先填写比赛组合名称，并点\"保存限额\"。"}
     res = trade("buy", symbol, s["auto_portfolio"], amount=str(s["auto_amount_usd"]), submit=False,
                 headless=bool(s["auto_headless"]))
     _append({"time": _london_now().strftime("%Y-%m-%d %H:%M"), "decision": "test", "mode": "dry_run",
