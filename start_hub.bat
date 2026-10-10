@@ -11,7 +11,7 @@ set "OLD_BOT=%~dp0..\Stocks_bot"
 
 rem ---------- 1. Move the two old folders in (skipped once done) ----------
 set NEED=
-if not exist "trader\package.json" if not exist "package.json" set NEED=1
+if not exist "trader\package.json" set NEED=1
 if not exist "news_bot\app.py" set NEED=1
 if not defined NEED goto run
 
@@ -26,7 +26,6 @@ echo ========================================================
 pause
 
 if exist "trader\package.json" goto movebot
-if exist "package.json" goto movebot
 if not exist "%OLD_NICK%\package.json" ( echo Not found: %OLD_NICK% & goto failed )
 move "%OLD_NICK%" "%HUB%trader" >nul
 if errorlevel 1 ( echo Could not move Nick_fixed. Something is still using it; close it and run again. & goto failed )

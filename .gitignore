@@ -1,16 +1,4 @@
-# Dependencies and caches
-node_modules/
-.npm-cache/
-# Inspector local state
-.mcp-inspector/
-# Chrome profile folder (contains your sign-in, never commit or share it)
-.browser-data/
-# Read-only review reports, portfolio journals, explore-helper commands and results
-reports/
-logs/
-.explore/
-
-# UKIC Hub (news_bot + hub)
+# UKIC Hub (news_bot + hub). Trader rules are in trader/.gitignore.
 .env
 **/.env
 *.db
@@ -19,10 +7,11 @@ news_bot/dashboard.html
 hub/data/settings.json
 hub/data/watchlist.json
 hub/data/auto_trades.jsonl
-hub/data/briefs/
-hub/data/decisions/
-__pycache__/
-*.pyc
 hub/data/tg_orders.jsonl
 hub/data/tg_offset.json
 hub/data/telegram_status.json
+hub/data/briefs/
+hub/data/decisions/
+hub/data/hub.log
+__pycache__/
+*.pyc
