@@ -16,7 +16,7 @@ from pathlib import Path
 
 HUB = Path(__file__).resolve().parent
 ROOT = HUB.parent
-TRADER = ROOT / "trader"
+TRADER = ROOT / "trader" if (ROOT / "trader" / "package.json").exists() else ROOT  # repo layout: trader at the root
 NEWS_BOT = ROOT / "news_bot"
 DATA = HUB / "data"
 BRIEFS = DATA / "briefs"
