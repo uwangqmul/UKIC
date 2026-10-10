@@ -16,7 +16,7 @@ from pathlib import Path
 
 HUB = Path(__file__).resolve().parent
 ROOT = HUB.parent
-TRADER = ROOT / "trader" if (ROOT / "trader" / "package.json").exists() else ROOT  # repo layout: trader at the root
+TRADER = ROOT / "trader"
 NEWS_BOT = ROOT / "news_bot"
 DATA = HUB / "data"
 BRIEFS = DATA / "briefs"
@@ -63,7 +63,18 @@ DEFAULT_SETTINGS = {
     "sell_threshold": 0.60,          # Jev probability of "price down" needed for a SELL suggestion
     "min_margin": 0.15,              # rise vs down must differ by at least this much
     "default_portfolio": "First Portfolio",
-    "auto_trade": False,             # keep off until the competition page has been checked
+    # automatic orders (autotrade.py); auto_mode is changed only from the Orders tab and starts off
+    "auto_mode": "off",              # off / dry_run / live
+    "auto_portfolio": "",            # competition portfolio name on UMushroom
+    "auto_min_prob": 0.70,
+    "auto_amount_usd": 10000,
+    "auto_sell": "all",
+    "auto_max_per_run": 2,
+    "auto_max_per_day": 6,
+    "auto_cooldown_hours": 24,
+    "auto_us_only": True,
+    "auto_run_kinds": ["morning", "intraday"],
+    "auto_headless": False,          # True = no Chrome window during automatic orders
     "scheduler_enabled": True,
 }
 

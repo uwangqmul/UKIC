@@ -18,7 +18,9 @@ from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+import autotrade
 import scheduler
+import trader_bridge
 from common import (ASSETS_FILE, BRIEFS, DECISIONS, LOG_FILE, NEWS_BOT, ROOT, SKILL, TRADER, WEB, clock_info,
                     load_settings, log, now_utc, read_json, save_settings, to_london, write_json)
 
@@ -26,8 +28,6 @@ PORT = 6400
 JOURNAL = "http://127.0.0.1:6420"
 NEWS_LOCK_PORT = 47321
 SKILL_FILES = {"skill": "SKILL.md", "prompt": "scheduled_prompt.md"}
-COMPANY_RE = re.compile(r"^[\w .&'-]{1,60}$")
-NPM = "npm.cmd" if sys.platform == "win32" else "npm"
 
 
 # ---------- Status ----------
@@ -169,38 +169,43 @@ def log_tail(n=200):
 
 # ---------- Actions ----------
 def trade(body):
-    action = body.get("action")
-    company = str(body.get("company", "")).strip()
-    portfolio = str(body.get("portfolio", "")).strip()
-    if action not in ("buy", "sell") or not COMPANY_RE.match(company):
-        return {"ok": False, "output": "Invalid action or company"}
-    args = [NPM, "run", "trade", "--", action, company]
-    if portfolio:
-        if not COMPANY_RE.match(portfolio):
-            return {"ok": False, "output": "Invalid portfolio name"}
-        args += ["--portfolio", portfolio]
-    shares, amount = str(body.get("shares", "")).strip(), str(body.get("amount", "")).strip()
-    if shares:
-        if not (re.fullmatch(r"\d+(\.\d+)?", shares) or (shares == "all" and action == "sell")):
-            return {"ok": False, "output": "Invalid shares"}
-        args += ["--shares", shares]
-    elif amount:
-        if not re.fullmatch(r"\d+(\.\d+)?", amount):
-            return {"ok": False, "output": "Invalid amount"}
-        args += ["--amount", amount]
-    else:
-        return {"ok": False, "output": "Give shares or amount"}
-    if body.get("submit") is True:
-        args.append("--submit")
-    log.info("Trade: %s", " ".join(args[3:]))
-    try:
-        p = subprocess.run(args, cwd=TRADER, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=240)
-        out = (p.stdout + "\n" + p.stderr).strip()
-        log.info("Trade finished (%s)", p.returncode)
-        return {"ok": p.returncode == 0, "output": out[-6000:]}
-    except Exception as e:
-        return {"ok": False, "output": str(e)}
+    return trader_bridge.trade(body.get("action"), body.get("company", ""), body.get("portfolio", ""),
+                               shares=body.get("shares", ""), amount=body.get("amount", ""),
+                               submit=body.get("submit") is True)
+
+
+AUTO_LIMIT_KEYS = {"auto_portfolio": str, "auto_min_prob": float, "auto_amount_usd": float, "auto_sell": str,
+                   "auto_max_per_run": int, "auto_max_per_day": int, "auto_cooldown_hours": float,
+                   "auto_us_only": bool, "auto_headless": bool, "auto_run_kinds": list}
+
+
+def auto_state():
+    s = load_settings()
+    ok, why = autotrade.can_go_live(s)
+    good = autotrade.last_good_dry_run(s["auto_portfolio"]) if s["auto_portfolio"].strip() else None
+    return {"settings": {k: s[k] for k in ["auto_mode", *AUTO_LIMIT_KEYS]}, "can_go_live": ok, "why_not": why,
+            "last_good_dry_run": good and good["time"], "ledger": list(reversed(autotrade.ledger(40)))}
+
+
+def save_auto_limits(body):
+    update = {}
+    for k, typ in AUTO_LIMIT_KEYS.items():
+        if k not in body:
+            continue
+        v = body[k]
+        if typ is list:
+            v = [x for x in v if x in ("morning", "intraday", "manual")]
+        elif typ is bool:
+            v = bool(v)
+        else:
+            v = typ(v)
+        update[k] = v
+    if "auto_sell" in update and not (update["auto_sell"] == "all" or re.fullmatch(r"\d+(\.\d+)?", update["auto_sell"])):
+        raise ValueError("auto_sell must be 'all' or a number of shares")
+    if "auto_portfolio" in update and update["auto_portfolio"] and not trader_bridge.NAME_RE.match(update["auto_portfolio"]):
+        raise ValueError("invalid portfolio name")
+    save_settings(update)
+    return auto_state()
 
 
 def launch(what):
@@ -245,6 +250,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, news(int(q.get("hours", 48))))
             if u.path == "/api/watchlist":
                 return self.send(200, watchlist())
+            if u.path == "/api/autotrade":
+                return self.send(200, auto_state())
             if u.path == "/api/decisions":
                 return self.send(200, decisions())
             if u.path == "/api/brief":
@@ -271,7 +278,8 @@ class Handler(BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n) or b"{}")
             if u.path == "/api/settings":
-                body.pop("auto_trade", None)  # stays off until order placing on the competition page is verified
+                for k in [k for k in body if k.startswith("auto_")]:
+                    body.pop(k)  # automatic orders are changed only through /api/autotrade/*
                 return self.send(200, save_settings(body))
             if u.path == "/api/assets":
                 return self.send(200, save_assets(body))
@@ -284,6 +292,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, {"started": scheduler.run_now(kind)})
             if u.path == "/api/trade":
                 return self.send(200, trade(body))
+            if u.path == "/api/autotrade/mode":
+                if body.get("mode") == "live" and body.get("confirm") != "LIVE":
+                    return self.send(400, {"ok": False, "error": "type LIVE to confirm"})
+                return self.send(200, {**autotrade.set_mode(body.get("mode")), "state": auto_state()})
+            if u.path == "/api/autotrade/settings":
+                return self.send(200, save_auto_limits(body))
+            if u.path == "/api/autotrade/test":
+                sym = str(body.get("symbol") or "AAPL").strip().upper()
+                return self.send(200, {**autotrade.test_dry_run(sym), "state": auto_state()})
             if u.path == "/api/launch":
                 return self.send(200, launch(body.get("what")))
             if u.path == "/api/skill":

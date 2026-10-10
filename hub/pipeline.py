@@ -18,6 +18,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
+import autotrade
 from common import (ASSETS_FILE, BRIEFS, DECISIONS, NEWS_BOT, load_settings, log, now_utc, read_json,
                     to_london, write_json)
 
@@ -246,7 +247,7 @@ def run(kind="manual"):
     rows = reason(brief)
     dec = {"id": brief["id"], "kind": kind, "london": brief["london"], "brief": brief["id"],
            "engine": "jev" if any(r["source"] == "jev" for r in rows) else "article-average",
-           "auto_trade": False, "rows": rows}
+           "rows": rows}
     acts = [r for r in rows if r["action"] != "HOLD"]
     send = (kind == "morning" and settings["telegram_morning"]) or kind == "manual" or (
         kind == "intraday" and (settings["telegram_intraday"] == "all" or
@@ -254,6 +255,16 @@ def run(kind="manual"):
     dec["telegram"] = notify(telegram_text(dec)) if send else False
     write_json(DECISIONS / f"{dec['id']}.json", dec)
     log.info("Decision %s: %d BUY/SELL", dec["id"], len(acts))
+    try:
+        summary = autotrade.execute(dec)
+    except Exception as e:
+        log.exception("Auto trading failed")
+        summary = {"mode": settings["auto_mode"], "done": [], "skipped": [], "error": str(e)[:200]}
+    if summary:
+        dec["auto"] = summary
+        write_json(DECISIONS / f"{dec['id']}.json", dec)
+        if summary["done"] or summary.get("error"):
+            notify("\n".join(autotrade.telegram_lines(summary)))
     return {"brief": brief["id"], "decision": dec["id"]}
 
 

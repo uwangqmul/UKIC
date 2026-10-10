@@ -149,8 +149,23 @@ iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;ba
     </div>
     <p class="muted">预览会打开 Chrome 填好表单但不提交。确认无误后再点"确认提交订单"。下单前请关掉项目上次打开的 Chrome 窗口。</p>
     <pre id="o-out">尚未操作</pre></div>
-  <div class="card"><b>自动下单</b>：<span class="off">关闭</span>
-    <div class="muted">比赛页面出来后，先验证按钮逻辑和下单流程，再打开这个开关。在此之前所有订单都由你手动确认。</div></div>
+  <div class="card" id="auto-card"><b>自动下单</b> <span id="auto-mode" class="pill"></span>
+    <div class="muted" style="margin:6px 0">比赛页面出来后，先在下面填好比赛组合名称，点"演练一次"：它会打开 UMushroom 把订单填好但不提交，用来验证按钮逻辑和下单流程。确认没问题后才能打开实盘。在此之前所有订单都由你手动确认。</div>
+    <div id="auto-gate" style="margin:6px 0"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+      <button class="btn" onclick="autoMode('off')">关闭</button>
+      <button class="btn" onclick="autoMode('dry_run')">演练（只填表，不提交）</button>
+      <button class="btn danger" onclick="autoMode('live')">实盘（自动提交）</button>
+    </div>
+    <div id="auto-form"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+      <button class="btn primary" onclick="saveAuto()">保存限额</button>
+      <input id="auto-test-sym" value="AAPL" style="width:90px"> <button class="btn" onclick="autoTest()">演练一次</button>
+    </div>
+    <pre id="auto-out" style="display:none"></pre>
+    <b style="display:block;margin-top:12px">自动下单记录</b>
+    <table id="auto-ledger"></table>
+  </div>
 </section>
 
 <section id="journal">
@@ -192,7 +207,7 @@ function nav(){$("nav").innerHTML=TABS.map(([id,t])=>`<button data-id="${id}">${
 function show(id){try{localStorage.setItem("tab",id)}catch(e){}
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.id===id));
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("active",s.id===id));
-  ({watch:loadWatch,news:loadNews,decisions:loadDecisions,assets:loadAssets,skill:loadSkill,logs:loadLog,schedule:renderSchedule,
+  ({orders:loadAuto,watch:loadWatch,news:loadNews,decisions:loadDecisions,assets:loadAssets,skill:loadSkill,logs:loadLog,schedule:renderSchedule,
     journal:()=>{if(!$("journal-frame").src)$("journal-frame").src="http://127.0.0.1:6420/"}}[id]||(()=>{}))()}
 
 async function refresh(){S=await get("/api/status");const c=S.clock,h=S.health,r=S.run;
@@ -267,13 +282,31 @@ async function loadDecisions(){DECS=await get("/api/decisions");
   $("dec-pick").innerHTML=DECS.map((d,i)=>`<option value="${i}">${d.london} · ${KIND[d.kind]||d.kind}${d.engine==="claude"?" · Claude":""}</option>`).join("")||"<option>还没有推理结果</option>";renderDecision()}
 function bar(p){return `<div class="bar" title="涨 ${pct(p.rise)} / 平 ${pct(p.flat)} / 跌 ${pct(p.down)}"><i style="width:${p.rise*100}%;background:var(--up)"></i><i style="width:${p.flat*100}%;background:var(--line)"></i><i style="width:${p.down*100}%;background:var(--down)"></i></div>`}
 function renderDecision(){const d=DECS[$("dec-pick").value];if(!d){$("dec-table").innerHTML="";$("dec-meta").textContent="";return}
-  $("dec-meta").textContent=`引擎：${d.engine==="jev"?"Jev":d.engine==="claude"?"Claude":"文章平均（未配置 Jev Key）"} · Telegram：${d.telegram?"已发送":"未发送"}`;
+  $("dec-meta").textContent=`引擎：${d.engine==="jev"?"Jev":d.engine==="claude"?"Claude":"文章平均（未配置 Jev Key）"} · Telegram：${d.telegram?"已发送":"未发送"}`+(d.auto?` · 自动下单（${MODE[d.auto.mode]}）：${d.auto.done.length} 笔`:"");
   $("dec-table").innerHTML="<tr><th>建议</th><th>代码</th><th>概率</th><th>时效</th><th>未来几小时</th><th>12–24 小时</th><th>依据</th><th></th></tr>"+d.rows.map(r=>`<tr><td class="${r.action}">${r.action}</td><td>${esc(r.symbol)}<div class="muted">${esc(r.sector)}</div></td><td>${r.action==='HOLD'?'':pct(r.prob)}</td><td style="white-space:nowrap">${r.horizon==="hours"?"几小时":r.horizon==="day"?"12–24h":""}</td><td>${bar(r.probs.hours)}</td><td>${bar(r.probs.day)}</td><td>${(r.why?`<div>${esc(r.why)}</div>`:"")+r.top.map(t=>`<div><a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(t.title)}</a> <span class="muted">${t.horizon==="immediate"?"即时":"滞后"}</span></div>`).join("")}</td><td class="nowrap">${r.action!=="HOLD"?`<button class="btn" onclick="toOrder('${r.action}','${esc(r.symbol)}')">去下单</button>`:""}</td></tr>`).join("")}
 async function showBrief(){const d=DECS[$("dec-pick").value];if(!d)return;const b=await get("/api/brief?id="+d.brief);$("brief-box").style.display="block";$("brief-text").textContent=b.text||"找不到资讯包"}
 function toOrder(a,sym){$("o-action").value=a==="BUY"?"buy":"sell";$("o-company").value=sym;$("o-portfolio").value=S.settings.default_portfolio;$("o-shares").value=a==="SELL"?"all":"";show("orders")}
 async function trade(submit){const b={action:$("o-action").value,company:$("o-company").value,portfolio:$("o-portfolio").value,shares:$("o-shares").value,amount:$("o-amount").value,submit};
   if(submit&&!confirm(`确认${b.action==="buy"?"买入":"卖出"} ${b.company}（${b.shares||("$"+b.amount)}）并提交到 UMushroom？`))return;
   $("o-out").textContent=(submit?"正在提交…":"正在预览…")+" Chrome 会弹出，请稍等";const r=await post("/api/trade",b);$("o-out").textContent=(r.ok?"✅ ":"❌ ")+r.output}
+
+let AUTO=null;const MODE={off:"关闭",dry_run:"演练",live:"实盘"};
+async function loadAuto(){AUTO=await get("/api/autotrade");renderAuto()}
+function renderAuto(){const s=AUTO.settings;
+  $("auto-mode").textContent=MODE[s.auto_mode];$("auto-mode").className="pill "+(s.auto_mode==="live"?"SELL":s.auto_mode==="dry_run"?"on":"off");
+  $("auto-gate").innerHTML=AUTO.can_go_live?`<span class="on">✓ 可以开启实盘</span>：最近一次成功演练 ${esc(AUTO.last_good_dry_run)}`:`<span class="warn">实盘还不能开启：${esc(AUTO.why_not)}</span>`;
+  const f=[["auto_portfolio","比赛组合名称（UMushroom 上的名字）","text"],["auto_min_prob","Jev 概率至少","num"],["auto_amount_usd","每笔买入金额（USD）","num"],["auto_sell","卖出数量（all 或股数）","text"],["auto_max_per_run","每轮最多几笔","num"],["auto_max_per_day","每天最多几笔","num"],["auto_cooldown_hours","同一只股票间隔（小时）","num"],["auto_us_only","只做美股代码","bool"],["auto_headless","不弹出 Chrome 窗口","bool"]];
+  $("auto-form").innerHTML=f.map(([k,l,t])=>`<label class="row"><span>${l}</span>${t==="bool"?`<input type="checkbox" data-a="${k}" data-t="bool" ${s[k]?"checked":""}>`:`<input data-a="${k}" data-t="${t}" value="${esc(s[k])}" style="width:${t==="text"?"260px":"120px"}">`}</label>`).join("")+
+    `<label class="row"><span>哪些推理可以下单</span>${["morning","intraday"].map(k=>`<label><input type="checkbox" data-kind="${k}" ${s.auto_run_kinds.includes(k)?"checked":""}> ${KIND[k]}</label>`).join(" ")}</label>`;
+  $("auto-ledger").innerHTML="<tr><th>时间</th><th>档位</th><th>操作</th><th>结果</th><th>来源</th></tr>"+AUTO.ledger.map(r=>`<tr><td class="nowrap">${esc(r.time)}</td><td>${MODE[r.mode]||r.mode}</td><td class="${r.action}">${r.action} ${esc(r.symbol)} ${r.amount?"$"+esc(r.amount):esc(r.shares)+" 股"}${r.prob?" · "+pct(r.prob):""}</td><td>${r.ok?"✅":"❌"}${r.submitted===true?" 已提交":r.submitted==="unknown"?" ⚠ 未确认，请到 UMushroom 检查":" 未提交"}</td><td class="muted">${r.decision==="test"?"手动演练":esc(r.decision)}</td></tr>`).join("")||"<tr><td class='muted'>还没有记录</td></tr>"}
+async function saveAuto(){const b={};document.querySelectorAll("[data-a]").forEach(e=>{const t=e.dataset.t;b[e.dataset.a]=t==="bool"?e.checked:t==="num"?Number(e.value):e.value.trim()});
+  b.auto_run_kinds=[...document.querySelectorAll("[data-kind]")].filter(e=>e.checked).map(e=>e.dataset.kind);
+  const r=await post("/api/autotrade/settings",b);if(r.error){toast("保存失败："+r.error);return}AUTO=r;renderAuto();toast("限额已保存")}
+async function autoMode(m){let confirmText;
+  if(m==="live"){confirmText=prompt("实盘会在推理后自动提交订单（限额见下方）。确认请输入 LIVE");if(confirmText!=="LIVE")return}
+  const r=await post("/api/autotrade/mode",{mode:m,confirm:confirmText});if(!r.ok){toast(r.error||"切换失败");return}AUTO=r.state;renderAuto();toast("自动下单："+MODE[m])}
+async function autoTest(){$("auto-out").style.display="block";$("auto-out").textContent="正在演练… Chrome 会打开并填好订单，但不会提交";
+  const r=await post("/api/autotrade/test",{symbol:$("auto-test-sym").value});$("auto-out").textContent=(r.ok?"✅ 演练成功，表单已正确填好（未提交）\n":"❌ 演练失败\n")+(r.output||r.error||"");if(r.state){AUTO=r.state;renderAuto()}}
 
 async function loadSkill(){const r=await get("/api/skill?name="+$("skill-pick").value);$("skill-text").value=r.text||""}
 async function saveSkill(){await post("/api/skill",{name:$("skill-pick").value,text:$("skill-text").value});toast("已保存")}
