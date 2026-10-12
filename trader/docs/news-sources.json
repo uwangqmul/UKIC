@@ -1,5 +1,5 @@
 {
-  "about": "News sources for the 40 competition assets (UKIC). Researched and fetched on 2026-10-02 from a Mac; re-check on the Windows machine with `npm run check-feeds`. See docs/AGENT_GUIDE.md for how to use this file. Tiers: 1 = official (company, regulator, court), 2 = reputable aggregator, 3 = unconfirmed (never trade on it alone). ua: browser (default) | feedreader (site only answers feed readers) | contact (SEC/BLS require a User-Agent with a contact email: set FEED_CONTACT).",
+  "about": "News sources for the 39 competition assets (UKIC). Researched and fetched on 2026-10-02 from a Mac; re-check on the Windows machine with `npm run check-feeds`. See docs/AGENT_GUIDE.md for how to use this file. Tiers: 1 = official (company, regulator, court), 2 = reputable aggregator, 3 = unconfirmed (never trade on it alone). ua: browser (default) | feedreader (site only answers feed readers) | contact (SEC/BLS require a User-Agent with a contact email: set FEED_CONTACT).",
   "checked": "2026-10-02",
   "secFilingsUrl": "https://data.sec.gov/submissions/CIK{cik10}.json",
   "assets": [
@@ -25,13 +25,10 @@
     { "group": "Memory & equipment", "name": "Micron Technology", "ticker": "MU", "umushroom": "MU", "cik": 723125, "wire": "GlobeNewswire",
       "feeds": [],
       "expect": "Guidance moves the whole memory group. Next results mid-December, outside the window." },
-    { "group": "Memory & equipment", "name": "SanDisk", "ticker": "SNDK", "umushroom": "SNDK", "cik": 2023554, "wire": "unverified",
-      "feeds": [{ "name": "SanDisk IR press releases", "url": "https://investor.sandisk.com/rss/news-releases.xml", "type": "rss" }],
-      "expect": "Margin guidance. Results 29 Oct after close (confirmed)." },
-    { "group": "Memory & equipment", "name": "SK Hynix", "ticker": "SKHY", "umushroom": "SK Hynix (Equity on UMushroom; check which ticker it shows)", "cik": 2120882, "wire": "own newsroom; 6-K filings; Korean DART",
+    { "group": "Memory & equipment", "name": "SK Hynix", "ticker": "HY9H", "umushroom": "https://umushroom.com/en/equity/hy9h-sk-hynix", "cik": 2120882, "wire": "own newsroom; 6-K filings; Korean DART",
       "feeds": [{ "name": "SK Hynix newsroom", "url": "https://news.skhynix.com/feed/", "type": "rss" }],
       "expect": "HBM deals, results (~27-28 Oct, unconfirmed), clarifications of press reports. Posts ~20:00-22:00 ET the evening before." },
-    { "group": "Memory & equipment", "name": "ASML", "ticker": "ASML", "umushroom": "ASML", "cik": 937966, "wire": "own IR site; 6-K filings",
+    { "group": "Memory & equipment", "name": "ASML", "ticker": "ASML", "umushroom": "https://umushroom.com/en/equity/asml-asml-hldg", "cik": 937966, "wire": "own IR site; 6-K filings",
       "feeds": [{ "name": "ASML IR press releases", "url": "https://investor.asml.com/rss/news-releases.xml", "type": "rss" }],
       "expect": "Results 14 Oct 07:00 CET (calendar sites only). No longer reports quarterly orders since 2026: watch the sales outlook." },
 

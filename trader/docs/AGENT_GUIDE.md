@@ -8,10 +8,12 @@ Related files:
 
 | File | What it is |
 |---|---|
-| `docs/news-sources.json` | Machine-readable list of the 40 assets: UMushroom identifier, SEC CIK, newswire, feeds, what news to expect. Plus the shared sources. **Read this file for data**; this guide explains it. |
+| `docs/news-sources.json` | Machine-readable list of the 39 assets: UMushroom identifier, SEC CIK, newswire, feeds, what news to expect. Plus the shared sources. **Read this file for data**; this guide explains it. |
 | `docs/news-sources.pdf` | The same research as a readable document, with dated past examples for every source. |
 | `scripts/check-feeds.js` (`npm run check-feeds`) | Fetches every source once and reports which ones work from this machine. |
 | `README.md` | How the order tools work (buy/sell, previews, order locks, unlock). |
+| `../hub/skill/SKILL.md` | How the hub's news briefs and Jev's probabilities become trade suggestions. |
+| [Daily strategy log](https://docs.google.com/document/d/1gjE9GZbHy7OWNu3dEwcQyO3rNqhgC053tbWeQPNFGKU/edit?usp=sharing) | Shared Google Doc: the opening allocation and every step since (section 9). |
 
 ---
 
@@ -23,10 +25,11 @@ Related files:
 - **Order timing:** an order placed while the market is closed waits and **fills at the next open**. Most scheduled news (results) comes out after the close or before the open, so for those **interpreting the news correctly matters more than speed**. Seconds matter only for news during trading hours (policy, scoops, outages).
 - **Reactions can reverse.** For example, Cisco rose 8% after hours on 12 Aug 2026 and closed **−8.9%** the next day. Do not chase the first after-hours move.
 
-## 2. The 40 assets
+## 2. The 39 assets
 
-Order stocks by **ticker**. Order the two funds by **ISIN** (two different gold products share the ticker `GOLD`). Use **GOOGL**,
-never "Alphabet" (the order code refuses it as ambiguous: there are two share classes).
+Order stocks by **ticker**, except the four below that are ordered by their exact UMushroom page (the hub converts their
+symbols automatically, from `"umushroom"` in `hub/data/assets.json`). Use **GOOGL**, never "Alphabet" (the order code
+refuses it as ambiguous: there are two share classes).
 
 | Group | Asset | Order with | SEC CIK |
 |---|---|---|---|
@@ -36,9 +39,8 @@ never "Alphabet" (the order code refuses it as ambiguous: there are two share cl
 | Chips | Taiwan Semiconductor (ADR) | `TSM` | 1046179 |
 | Chips | Broadcom | `AVGO` | 1730168 |
 | Memory & equipment | Micron | `MU` | 723125 |
-| Memory & equipment | SanDisk | `SNDK` | 2023554 |
-| Memory & equipment | SK Hynix | listed as Equity on UMushroom (check the ticker it shows; US ADR is SKHY) | 2120882 |
-| Memory & equipment | ASML | `ASML` | 937966 |
+| Memory & equipment | SK Hynix (symbol `HY9H`, ISIN US78392B1070, the listing we hold) | page `https://umushroom.com/en/equity/hy9h-sk-hynix` | 2120882 |
+| Memory & equipment | ASML (Amsterdam, EUR, ISIN NL0010273215) | page `https://umushroom.com/en/equity/asml-asml-hldg` | 937966 |
 | Optical & networking | Lumentum | `LITE` | 1633978 |
 | Optical & networking | Corning | `GLW` | 24741 |
 | Optical & networking | Cisco | `CSCO` | 858877 |
@@ -68,23 +70,29 @@ never "Alphabet" (the order code refuses it as ambiguous: there are two share cl
 | Hedge | JPMorgan Chase | `JPM` | 19617 |
 | Hedge | Exxon Mobil | `XOM` | **2115436** (new since 1 Jul 2026; the old 34088 no longer has the stock's filings) |
 | Hedge | Netflix | `NFLX` | 1065280 |
-| Hedge | Amundi Physical Gold ETC C (ETF page `/en/etf/amundi-physical-gold-etc-c-2`) | `FR0013416716` | none (fund) |
-| Hedge | iShares $ Treasury Bond 20+yr UCITS ETF USD (Acc), "DTLA" | `IE00BFM6TC58` | none (fund) |
+| Hedge | Amundi Physical Gold ETC C (symbol `GOLD`, ISIN FR0013416716) | page `https://umushroom.com/en/etf/amundi-physical-gold-etc-c-2` | none (fund) |
+| Hedge | iShares $ Treasury Bond 20+yr UCITS ETF USD (Acc) (symbol `DTLA`, ISIN IE00BFM6TC58) | page `https://umushroom.com/en/etf/ishares-treasury-bond-20-yr-ucits-etf-usd-acc` | none (fund) |
 
 CIKs come from the SEC's official ticker list (`sec.gov/files/company_tickers.json`, 2 Oct 2026).
 
-**Removed** from the first draft: Coherent, Atlassian, MongoDB (overlapping), Samsung (still watched as a **news signal only**: its
-results move MU and SK Hynix) and a Fidelity fund.
+**Removed** from the first draft: Coherent, Atlassian, MongoDB (overlapping), HP Inc (HPQ; we hold HPE instead), Samsung, a Fidelity
+fund, and SanDisk (not on UMushroom, only as a 3x leveraged product; its weight went to the other assets).
 
 **Never buy** the leveraged or options products that appear in the same searches ("Leverage Shares 3x Long/Short …",
 "IncomeShares … Options ETP"). They are not the asset and lose value over time.
 
 ## 3. Portfolio rules
 
-1. **Hedges + cash ≥ 15–20%** of the portfolio at all times. The hedges are the last 9 rows above (WMT, PG, JNJ, LLY, JPM, XOM, NFLX, gold, Treasuries).
-2. **Risk-off:** on broad bad news (US export curbs on chips, tariff threats, a market-wide sell-off) move towards **~40%** hedges + cash.
-3. **Concentration:** at most **25% in one group** and **8–10% in one asset**. The 27 tech names move together on AI news; treat them as one big risk.
-4. **Never borrow.** UMushroom offers a 10% credit margin: "Cash available to buy" must **never go below zero**.
+Opening allocation (12 Oct 2026, fully invested, no cash; the reasons are in the strategy log, section 9):
+Chips 20 (NVDA 6, AVGO 4, TSM 4, AMD 3, INTC 3) · Hedges 20 (gold 4, DTLA 3, WMT, PG, JNJ, LLY, JPM, XOM 2 each, NFLX 1) ·
+Platforms 14 (GOOGL, AMZN, AAPL, META 3.5 each) · Software & cloud 12 (MSFT 4, ORCL 2, PLTR 2, NET 1.5, CRWD 1.5, IBM 1) ·
+Memory & equipment 10 (MU 4, SK Hynix 3, ASML 3) · Defense 9 (RTX 3, LMT 2, NOC 2, GD 2) · Optical & networking 6 (LITE, GLW, CSCO 2 each) ·
+Mobility & space 5 (TSLA 2, UBER 1.5, SPCX 1.5) · Servers 4 (DELL 2, HPE 2).
+
+1. **Hedges ≥ 15%** of the portfolio at all times, normally 20%. The hedges are the last 9 rows above (WMT, PG, JNJ, LLY, JPM, XOM, NFLX, gold, Treasuries).
+2. **Risk-off:** on broad bad news (US export curbs on chips, tariff threats, a market-wide sell-off) move towards **~40%** hedges, trimming chips and mobility first.
+3. **Concentration:** at most **20% in one group** and **6% in one asset**. The 30 tech names move together on AI news; treat them as one big risk.
+4. **Never borrow.** UMushroom offers a 10% credit margin: "Cash available to buy" must **never go below zero**. With almost no cash, every BUY needs a SELL or trim to pay for it.
 5. What each hedge protects against:
    - AI or tech sell-off: WMT, PG, JNJ (people keep buying groceries and medicine).
    - Market panic: gold and long Treasuries (usually rise when stocks crash). **Exception:** in an inflation shock (as in 2022) bonds fall together with stocks.
@@ -99,25 +107,32 @@ results move MU and SK Hynix) and a Fidelity fund.
 - Always **preview first**, then submit.
 - **`ORDER_UNCONFIRMED` means the order MAY have been placed. Never retry it.** That stock (or ETF, key `etf:<slug>`) is locked until a human checks Pending Orders / History on UMushroom and runs `npm run unlock -- <key>`. Other assets are not affected.
 - Sell: `shares: "all"` sells what is available. ETFs are counted in "units"; the code handles that.
+- The hub sends HY9H, ASML, GOLD, DTLA, LITE, NET and META to their exact UMushroom page (`"umushroom"` in `hub/data/assets.json`).
+- Orders run one at a time (dashboard, batch, Telegram, automatic): a second order waits.
+- A timeout after Submit is reported as "unknown": the same rule as `ORDER_UNCONFIRMED` applies.
 
 ## 5. News sources: how to use them
+
+### What the news bot reads (`news_bot/config.json`, every 20 minutes)
+- **Official company sources** (tag `official`): investor-relations and newsroom feeds, the investor-site JSON lists
+  (Corning, P&G, J&J, Netflix), and Google News searches limited to the company's own news pages (RTX, Walmart).
+  ASML, CrowdStrike, Northrop and Lilly have a fallback search that is used only when their feed fails.
+- **Google News search per asset and Yahoo ticker news** (tag `news`): faster coverage, but mostly rewrites that can make
+  old news look new. Confirm with an official source before acting.
+- **Defense Dept daily contract awards** (`war.gov`, tag `contract`), matched to the defense names by keyword.
+- No official source of their own in the news bot: TSM, AVGO, MU, ORCL, PLTR, UBER, TSLA, SPCX, GD, JPM (Google News and
+  Yahoo only); gold and DTLA have their own market-news searches.
+- Prices for the dashboard charts come from Yahoo (e.g. `GOLD.AS`, `DTLA.L`, `HY9H.F`); prices only, not news.
 
 ### Tiers (in `news-sources.json`)
 - **Tier 1, official** (the company, a regulator, a court): can be acted on.
 - **Tier 2, reputable aggregator** (Alpaca/Benzinga, TrendForce, live prices): act, then confirm with tier 1.
 - **Tier 3, unconfirmed** (Truth Social copies, posts on X): **never trade on tier 3 alone**; wait for tier 1 or 2.
 
-### Where news comes from, fastest first
-1. **Alpaca news stream (Benzinga)**, `wss://stream.data.alpaca.markets/v1beta1/news`: the main live feed, tagged by ticker, usually seconds after release. Needs a free Alpaca account. It has been known to miss some company press releases, so also read 2 and 3.
-2. **Company feeds** (`assets[].feeds`): the press release itself. Every RSS feed listed returned 200 on 2 Oct, **except** that `investor.nvidia.com` refused this machine later (NVIDIA's newsroom feed carries the same releases).
-3. **SEC filings** for every stock: `https://data.sec.gov/submissions/CIK{10-digit CIK}.json`. 8-K items: 2.02 results, 1.01 major agreements, 5.02 executive changes, 1.05 cyber incidents; foreign companies (TSM, ASML, SK Hynix) file 6-K. The SEC requires a User-Agent with a contact e-mail and at most 10 requests per second. JPM files dozens of other documents a day: keep only 8-K.
-4. **Shared sources** (`shared[]`): Federal Register (export controls and tariffs, a day before publication), White House actions, Fed / BLS data, defense contract awards (~17:00 ET daily), FDA, Medicare pricing, oil inventories (Wednesdays 10:30 ET), Treasury yield curves, outage status pages, court dockets, Waymo.
-
-**Ten companies have no working feed of their own** (TSM, AVGO, MU, ORCL, PLTR, UBER, TSLA, SPCX, GD, JPM): they depend on the Alpaca stream plus SEC filings. Walmart's newsroom is an HTML page that must be polled.
-
-### Do not use as news sources
-Yahoo Finance and Google News feeds, Seeking Alpha, Motley Fool: late, mostly rewrites, and they make old news look new.
-(Yahoo's chart API is fine for **prices** only: oil `CL=F`, gold `GC=F`, `GBPUSD=X`.)
+### Researched, not connected to the news bot yet
+1. **Alpaca news stream (Benzinga)**, `wss://stream.data.alpaca.markets/v1beta1/news`: a live feed tagged by ticker, usually seconds after release. Needs a free Alpaca account. It has been known to miss some company press releases.
+2. **SEC filings** for every stock: `https://data.sec.gov/submissions/CIK{10-digit CIK}.json`. 8-K items: 2.02 results, 1.01 major agreements, 5.02 executive changes, 1.05 cyber incidents; foreign companies (TSM, ASML, SK Hynix) file 6-K. The SEC requires a User-Agent with a contact e-mail and at most 10 requests per second. JPM files dozens of other documents a day: keep only 8-K.
+3. **Shared sources** (`shared[]`): Federal Register (export controls and tariffs, a day before publication), White House actions, Fed / BLS data, FDA, Medicare pricing, oil inventories (Wednesdays 10:30 ET), Treasury yield curves, outage status pages, court dockets, Waymo.
 
 ### Things that will trip up a parser or a naive reading
 - **Exxon's CIK changed** (see the table). A watcher using 34088 misses every XOM filing.
@@ -135,7 +150,7 @@ Yahoo Finance and Google News feeds, Seeking Alpha, Motley Fool: late, mostly re
 
 | Date | Event |
 |---|---|
-| Before the start | Tesla Q3 deliveries 2 Oct (486,532, above the ~461k forecast) · OPEC+ 4 Oct · Samsung early results evening of 7 Oct · TSMC September sales 8 Oct |
+| Before the start | Tesla Q3 deliveries 2 Oct (486,532, above the ~461k forecast) · OPEC+ 4 Oct · Samsung early results evening of 7 Oct (not held) · TSMC September sales 8 Oct |
 | Every business day | Defense contract awards ~17:00 · memory spot prices (DRAMeXchange) ~06:10 · oil inventories Wednesdays 10:30 |
 | 12–15 Oct | OCP Global Summit (data-centre hardware) ✓ |
 | 13 Oct | **JPM, JNJ results** before the open ✓ |
@@ -146,7 +161,7 @@ Yahoo Finance and Google News feeds, Seeking Alpha, Motley Fool: late, mostly re
 | 22 Oct | **LMT, PG** before the open ✓ · Intel ~22–23 ? |
 | 27 Oct | **Corning** call 08:30 ✓ · SK Hynix ~27–28 ? |
 | 28 Oct | **Fed rate decision 14:00** ✓ · MSFT, GOOGL, META ~28 ? |
-| 29 Oct | GDP + PCE inflation 08:30 ✓ · **SanDisk** after the close ✓ · **LLY** call 10:00 ✓ (release usually ~06:45) · AAPL, AMZN ~29 ? |
+| 29 Oct | GDP + PCE inflation 08:30 ✓ · **SanDisk** after the close ✓ (not held) · **LLY** call 10:00 ✓ (release usually ~06:45) · AAPL, AMZN ~29 ? |
 | 30 Oct | Employment costs ✓ · XOM ~30 ? · GD, NET late Oct ? |
 | 2–6 Nov | **US midterm elections 3 Nov** ✓ (reaction at the 4 Nov open) · **jobs report 6 Nov** ✓ · PLTR, UBER, AMD, SPCX, LITE ? |
 | 10–13 Nov | CPI 10th ✓ · TSMC October sales 10th ✓ · PPI 13th ✓ · Cisco ~12th ? |
@@ -167,10 +182,27 @@ Yahoo Finance and Google News feeds, Seeking Alpha, Motley Fool: late, mostly re
    ```
    It prints OK / BLOCKED / MISSING / WRONG_TYPE / ERROR per source (with the latest item date) and saves `reports/feed-check.json`.
    Read-only: it never posts or orders anything. Sources that are BLOCKED here: rely on the Alpaca stream and SEC filings for those companies.
-5. Search UMushroom once for SK Hynix and note the ticker it shows.
+5. SK Hynix: done. The team holds the EUR listing `HY9H`, ordered by its page `https://umushroom.com/en/equity/hy9h-sk-hynix`.
 
 ## 8. Still open
 
 - **Alpaca free tier:** that it still includes the live news stream in 2026 is unconfirmed; step 4 above confirms it.
 - **SEC access** could not be tested from the research machine (its DNS could not resolve sec.gov); step 4 above tests it.
 - Dates marked ? above will be announced by the companies during October.
+
+## 9. Daily strategy log and UMushroom posts
+
+- **Strategy log:** https://docs.google.com/document/d/1gjE9GZbHy7OWNu3dEwcQyO3rNqhgC053tbWeQPNFGKU/edit?usp=sharing
+  (shared Google Doc). It starts with the opening allocation of 12 Oct 2026 and the reasons for it.
+- Every step we take is documented there, and a team member also posts it under the portfolio's "Strategy" tab on
+  UMushroom. The portfolio "Description" is a fixed text and does not change.
+- UMushroom posts are plain text (no tables). One entry per step:
+  ```
+  Step N (date): short title
+  What we did: bought or sold what, how much, at what price.
+  Why: the news or event behind it, and its source.
+  Effect on the portfolio: new weights of the affected group and the hedges.
+  What we are watching next: the next event that could change the decision.
+  ```
+- The agent drafts entries (saved to `hub/data/decisions/<id>-log.txt`); a team member adds them to the log and posts them
+  once the order has really been placed.

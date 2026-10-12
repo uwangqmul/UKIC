@@ -1,6 +1,6 @@
 # Stock News Bot (Stocks_bot)
 
-Collects news on the 31 companies you follow (market news, official product launches, military/government contracts), uses Jev to judge whether each item is good or bad news, pushes it to Telegram, and builds a local dashboard with candlestick charts.
+Collects news on the 39 assets you follow (market news, official product launches, military/government contracts), uses Jev to judge whether each item is good or bad news, pushes it to Telegram, and builds a local dashboard with candlestick charts.
 
 It runs on your own computer: as long as the computer is on, online and the window is open, it checks every 20 minutes.
 
@@ -71,13 +71,13 @@ A message shows it as `🤖 Jev: 📈 Bullish 81% | Impact High`; in a digest ea
 
 ### 5. Dashboard (dashboard.html)
 
-- **Left list**: latest price, change, news count and bullish/bearish counts for the 31 companies; the thin bar is Jev's net leaning over the last 3 days. Sort by Jev leaning / change / news count / ticker, and search.
+- **Left list**: latest price, change, news count and bullish/bearish counts for the 39 assets; the thin bar is Jev's net leaning over the last 3 days. Sort by Jev leaning / change / news count / ticker, and search.
 - **Candlestick chart**: one year of daily candles, switchable to 1 month / 3 months / 6 months / 1 year. Arrows mark days with bullish (below) or bearish (above) news; click a candle to filter that day's news.
 - **News list**: last 14 days, filterable by bullish / bearish / official / contract. **Open an item** to see Jev's direction, impact and relevance, the actual move "one day later" and "to date" and whether it matched Jev, and a "Read article" button.
 - **Hit rate at the top**: how often Jev's direction matched the next day's actual move. The base is the first close after publication (the earliest price you could buy at after seeing the news); only bullish/bearish verdicts with a move over 0.3% count.
 - **Up/down colours**: red up / green down by default; switch with one click at the top right.
 
-Prices come from Yahoo Finance (free). SpaceX is not listed, so it has no prices; Fidelity needs a specific ETF ticker.
+Prices come from Yahoo Finance (free). When the symbol is not a Yahoo ticker, `price_symbol` in `config.json` gives it (`HY9H.F`, `GOLD.AS`, `DTLA.L`).
 
 ---
 
@@ -122,14 +122,16 @@ Edit `stocks` in `config.json`, one block per company, for example:
 
 | Field | Meaning |
 |---|---|
-| `symbol` | Ticker, also used for prices (Korean stocks like `005930.KS`) |
+| `symbol` | Ticker, also used for prices unless `price_symbol` is set |
 | `name` | Display name; also tells Jev which company this is |
 | `keywords` | One of these must appear in the story (whole word, case-sensitive; Chinese matches as a substring) |
 | `query` | Google News search terms |
-| `official` | Optional: official newsroom RSS addresses |
+| `official` | Optional: official sources. Each entry is a feed address, or an object: `{"url": …, "type": "json"}` for investor-site JSON press-release lists, `"ua": "feedreader"` for feeds that only answer feed readers, `{"search": "site:…"}` for a Google News search of the company's own news pages, and `"fallback": {…}` read only when the main source fails |
 | `contracts` | Optional: `true` also searches military/government contracts |
 | `exclude` | Optional: a headline containing these words is excluded |
 | `yahoo` | Optional: `false` skips Yahoo company news (non-US or unlisted) |
+| `suffix` | Optional: replaces `google_suffix` for this asset (gold and Treasury news rarely say "stock" or "shares") |
+| `price_symbol` | Optional: Yahoo ticker for the dashboard chart when it differs from `symbol` |
 
 Other settings: `check_interval_minutes` (check interval), `max_items_per_stock_per_run` (items per company per round), `digest_threshold` (switch to a digest above this many), `max_age_days` (only news from the last N days).
 

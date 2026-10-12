@@ -9,10 +9,10 @@ import { buildChecks, checkSource, checkAlpaca, classify, latestDate, runChecks 
 const data = JSON.parse(await readFile(new URL("../docs/news-sources.json", import.meta.url), "utf8"));
 
 // ---------- The source list ----------
-test("source list: 40 assets with unique tickers; every stock has a SEC CIK, every fund an ISIN", () => {
-  assert.equal(data.assets.length, 40);
+test("source list: 39 assets with unique tickers; every stock has a SEC CIK, every fund an ISIN", () => {
+  assert.equal(data.assets.length, 39);
   const tickers = data.assets.map((a) => a.ticker.split(" ")[0]);
-  assert.equal(new Set(tickers).size, 40, "tickers must be unique");
+  assert.equal(new Set(tickers).size, 39, "tickers must be unique");
   for (const a of data.assets) {
     assert.ok(a.group && a.name && a.umushroom && a.expect, `${a.ticker}: group, name, umushroom and expect are required`);
     if (a.isin) assert.match(a.isin, /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/, `${a.ticker}: ISIN`);
@@ -38,7 +38,7 @@ test("source list: every feed has an https URL and a known type", () => {
 test("buildChecks: company feeds, then one SEC request per stock (10-digit CIK), then the shared sources", () => {
   const checks = buildChecks(data);
   const sec = checks.filter((c) => c.section === "SEC filings");
-  assert.equal(sec.length, 38);
+  assert.equal(sec.length, 37);
   assert.ok(sec.every((c) => c.ua === "contact"));
   assert.ok(sec.some((c) => c.url === "https://data.sec.gov/submissions/CIK0002115436.json"));
   const sections = checks.map((c) => c.section);
