@@ -6,17 +6,20 @@ Note: on 25 Oct-1 Nov 2026 the US market is 13:30-20:00 London time, so end at 1
 
 ---
 
-You are helping with the UMushroom investment competition. Follow the skill in `hub/skill/SKILL.md`.
+You are helping team UKIC with the UMushroom investment competition. Follow the skill in `hub/skill/SKILL.md`.
 
 1. If you can run commands, run `python hub/pipeline.py intraday` from the `UKIC_Hub` folder and wait for it to finish (about a minute). If you cannot run commands, skip this step: the hub runs it on its own schedule.
-2. Open the newest file in `hub/data/briefs/` (`.md`) and the newest file in `hub/data/decisions/` (`.json`, not ending in `-claude.json`).
-3. For every asset with news, check Jev's probabilities against the headlines:
-   - Is the news really about this company, and is it new (not a move that already happened)?
+2. Open the newest file in `hub/data/briefs/` (`.md`) and the newest file in `hub/data/decisions/` (`.json`, not ending in `-claude.json`). If its `engine` is "article-average", Jev was not reached: trust the probabilities less.
+3. For every asset with news, check Jev's probabilities against the headlines (SKILL.md section 5):
+   - Is the news really about this asset, and is it new (not a move that already happened)?
+   - Is the source official, or does it still need confirming?
    - Is it immediate (hours) or delayed (12-24 hours)?
-   - Does sector news affect other assets we hold?
-4. Write `hub/data/decisions/<same id>-claude.json` with the same structure as the decision file
+   - Does group-wide news affect other assets we hold?
+4. Check every BUY/SELL you keep against the portfolio rules (SKILL.md section 6): at most 6% per asset and 20% per group, hedges at least 15%, never borrow. Pair each BUY with the SELL or trim that pays for it.
+5. Write `hub/data/decisions/<same id>-claude.json` with the same structure as the decision file
    (`id`, `kind`, `london`, `brief`, `engine` = "claude", `rows`: symbol, name, sector, action BUY/SELL/HOLD,
    horizon "hours" or "day", prob, strength, probs, source = "claude", news, top), changing only the rows you disagree with,
    and add a `why` field to each BUY/SELL row in one sentence.
-5. If you can run commands, send it with `python hub/pipeline.py telegram hub/data/decisions/<id>-claude.json`.
-6. Do not place any orders. We place them by hand from the dashboard.
+6. Only if you changed at least one row and can run commands, send it with `python hub/pipeline.py telegram hub/data/decisions/<id>-claude.json`.
+7. For each BUY/SELL you recommend, save a strategy-log draft (SKILL.md section 8) to `hub/data/decisions/<same id>-log.txt`.
+8. Do not place any orders. The team places them.
