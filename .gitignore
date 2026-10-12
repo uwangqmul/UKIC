@@ -15,3 +15,5 @@ hub/data/decisions/
 hub/data/hub.log
 __pycache__/
 *.pyc
+node_modules/
+.venv/

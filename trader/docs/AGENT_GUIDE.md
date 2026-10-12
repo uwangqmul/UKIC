@@ -12,6 +12,8 @@ Related files:
 | `docs/news-sources.pdf` | The same research as a readable document, with dated past examples for every source. |
 | `scripts/check-feeds.js` (`npm run check-feeds`) | Fetches every source once and reports which ones work from this machine. |
 | `README.md` | How the order tools work (buy/sell, previews, order locks, unlock). |
+| `../hub/skill/SKILL.md` | How the hub's news briefs and Jev's probabilities become trade suggestions (for a Claude session). |
+| [Daily strategy log](https://docs.google.com/document/d/1gjE9GZbHy7OWNu3dEwcQyO3rNqhgC053tbWeQPNFGKU/edit?usp=sharing) | Shared Google Doc: the opening allocation and every step since. See section 9. |
 
 ---
 
@@ -36,9 +38,9 @@ never "Alphabet" (the order code refuses it as ambiguous: there are two share cl
 | Chips | Taiwan Semiconductor (ADR) | `TSM` | 1046179 |
 | Chips | Broadcom | `AVGO` | 1730168 |
 | Memory & equipment | Micron | `MU` | 723125 |
-| Memory & equipment | SanDisk | `SNDK` | 2023554 |
-| Memory & equipment | SK Hynix | listed as Equity on UMushroom (check the ticker it shows; US ADR is SKHY) | 2120882 |
-| Memory & equipment | ASML | `ASML` | 937966 |
+| Memory & equipment | SanDisk | **watch only**: not on UMushroom (only a 3x leveraged product). News signal for MU and SK Hynix | 2023554 |
+| Memory & equipment | SK Hynix | Equity priced in EUR on UMushroom (the team holds this listing): order it by its page address. US ADR is SKHY | 2120882 |
+| Memory & equipment | ASML | `NL0010273215` (Amsterdam listing in EUR, the one the team holds) | 937966 |
 | Optical & networking | Lumentum | `LITE` | 1633978 |
 | Optical & networking | Corning | `GLW` | 24741 |
 | Optical & networking | Cisco | `CSCO` | 858877 |
@@ -81,10 +83,16 @@ results move MU and SK Hynix) and a Fidelity fund.
 
 ## 3. Portfolio rules
 
-1. **Hedges + cash ≥ 15–20%** of the portfolio at all times. The hedges are the last 9 rows above (WMT, PG, JNJ, LLY, JPM, XOM, NFLX, gold, Treasuries).
-2. **Risk-off:** on broad bad news (US export curbs on chips, tariff threats, a market-wide sell-off) move towards **~40%** hedges + cash.
-3. **Concentration:** at most **25% in one group** and **8–10% in one asset**. The 27 tech names move together on AI news; treat them as one big risk.
-4. **Never borrow.** UMushroom offers a 10% credit margin: "Cash available to buy" must **never go below zero**.
+Opening allocation (12 Oct 2026, fully invested, no cash):
+Chips 20 (NVDA 6, AVGO 4, TSM 4, AMD 3, INTC 3) · Hedges 20 (gold 4, DTLA 3, WMT, PG, JNJ, LLY, JPM, XOM 2 each, NFLX 1) ·
+Platforms 14 (GOOGL, AMZN, AAPL, META 3.5 each) · Software & cloud 12 (MSFT 4, ORCL 2, PLTR 2, NET 1.5, CRWD 1.5, IBM 1) ·
+Memory & equipment 10 (MU 4, SK Hynix 3, ASML 3) · Defense 9 (RTX 3, LMT 2, NOC 2, GD 2) · Optical & networking 6 (LITE, GLW, CSCO 2 each) ·
+Mobility & space 5 (TSLA 2, UBER 1.5, SPCX 1.5) · Servers 4 (DELL 2, HPE 2). The reasons are in the strategy log (section 9).
+
+1. **Hedges ≥ 15%** of the portfolio at all times, normally 20%. The hedges are the last 9 rows above (WMT, PG, JNJ, LLY, JPM, XOM, NFLX, gold, Treasuries).
+2. **Risk-off:** on broad bad news (US export curbs on chips, tariff threats, a market-wide sell-off) move towards **~40%** hedges, trimming chips and mobility first.
+3. **Concentration:** at most **20% in one group** and **6% in one asset**. The 31 tech names move together on AI news; treat them as one big risk.
+4. **Never borrow.** UMushroom offers a 10% credit margin: "Cash available to buy" must **never go below zero**. With almost no cash, every buy needs a sale or trim to pay for it.
 5. What each hedge protects against:
    - AI or tech sell-off: WMT, PG, JNJ (people keep buying groceries and medicine).
    - Market panic: gold and long Treasuries (usually rise when stocks crash). **Exception:** in an inflation shock (as in 2022) bonds fall together with stocks.
@@ -167,10 +175,26 @@ Yahoo Finance and Google News feeds, Seeking Alpha, Motley Fool: late, mostly re
    ```
    It prints OK / BLOCKED / MISSING / WRONG_TYPE / ERROR per source (with the latest item date) and saves `reports/feed-check.json`.
    Read-only: it never posts or orders anything. Sources that are BLOCKED here: rely on the Alpaca stream and SEC filings for those companies.
-5. Search UMushroom once for SK Hynix and note the ticker it shows.
+5. SK Hynix: the team holds the EUR listing on UMushroom. Note its page address so orders can use it.
 
 ## 8. Still open
 
 - **Alpaca free tier:** that it still includes the live news stream in 2026 is unconfirmed; step 4 above confirms it.
 - **SEC access** could not be tested from the research machine (its DNS could not resolve sec.gov); step 4 above tests it.
 - Dates marked ? above will be announced by the companies during October.
+
+## 9. Daily strategy log and UMushroom posts
+
+- **Strategy log:** https://docs.google.com/document/d/1gjE9GZbHy7OWNu3dEwcQyO3rNqhgC053tbWeQPNFGKU/edit?usp=sharing
+  (shared Google Doc, readable by anyone with the link). It starts with the opening allocation of 12 Oct 2026 and the reasons for it.
+- The competition asks us to **document every step** in the portfolio's "Strategy" posts on UMushroom. Each step goes into the
+  log first, then a team member posts it. The portfolio "Description" on UMushroom is a fixed text and does not change.
+- UMushroom posts are plain text (no tables). One entry per step:
+  ```
+  Step N (date): short title
+  What we did: bought or sold what, how much, at what price.
+  Why: the news or event behind it, and its source.
+  Effect on the portfolio: new weights of the affected group and the hedges.
+  What we are watching next: the next event that could change the decision.
+  ```
+- The agent drafts entries (the hub's Claude review saves them to `hub/data/decisions/<id>-log.txt`); people post them once the order is really placed.

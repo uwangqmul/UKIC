@@ -68,9 +68,9 @@ def send_message(text, chat_id=None, retries=3, html=False, preview=True):
                 continue
             if 400 <= r.status_code < 500:  # wrong token, wrong chat ID, etc. - retrying will not help
                 raise RuntimeError(f"Telegram rejected the request: {data.get('description')}")
-        except requests.RequestException:
-            if attempt == retries:
-                raise
+        except requests.RequestException as e:
+            if attempt == retries:  # the error text holds the URL with the bot token: never log it
+                raise RuntimeError(f"Telegram unreachable ({type(e).__name__})") from None
         time.sleep(2 ** attempt)
     raise RuntimeError("Send failed after all retries")
 

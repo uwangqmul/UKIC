@@ -67,7 +67,10 @@ def allowed_users(e):
 
 
 def api(token, method, **params):
-    r = requests.post(f"https://api.telegram.org/bot{token}/{method}", json=params, timeout=60)
+    try:
+        r = requests.post(f"https://api.telegram.org/bot{token}/{method}", json=params, timeout=60)
+    except requests.RequestException as e:  # the error text holds the URL with the bot token: never log it
+        raise RuntimeError(f"{method}: Telegram unreachable ({type(e).__name__})") from None
     data = r.json()
     if not data.get("ok"):
         raise RuntimeError(f"{method}: {data.get('description')}")
@@ -290,7 +293,7 @@ def problem(order):
     if order["action"] == "BUY" and order["shares"] == "all":
         return 'A buy cannot use "all". Please give a number of shares or an amount.'
     if not NAME_RE.match(order["symbol"]):
-        return f'I don\'t recognise the stock "{order['symbol']}". Please use its ticker, e.g. AAPL.'
+        return f'I don\'t recognise the stock "{order["symbol"]}". Please use its ticker, e.g. AAPL.'
     return ""
 
 

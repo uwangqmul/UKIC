@@ -14,78 +14,6 @@
   ],
   "stocks": [
     {
-      "symbol": "COHR",
-      "name": "Coherent",
-      "keywords": [
-        "Coherent Corp",
-        "Coherent Inc",
-        "COHR"
-      ],
-      "query": "\"Coherent Corp\" OR COHR"
-    },
-    {
-      "symbol": "TEAM",
-      "name": "Atlassian",
-      "keywords": [
-        "Atlassian"
-      ],
-      "query": "Atlassian"
-    },
-    {
-      "symbol": "IBM",
-      "name": "IBM",
-      "keywords": [
-        "IBM"
-      ],
-      "query": "IBM"
-    },
-    {
-      "symbol": "HPQ",
-      "name": "HP",
-      "keywords": [
-        "HP Inc",
-        "HPQ",
-        "HP"
-      ],
-      "query": "\"HP Inc\" OR HPQ"
-    },
-    {
-      "symbol": "DELL",
-      "name": "Dell",
-      "keywords": [
-        "Dell"
-      ],
-      "query": "\"Dell Technologies\" OR Dell"
-    },
-    {
-      "symbol": "ORCL",
-      "name": "Oracle",
-      "keywords": [
-        "Oracle"
-      ],
-      "query": "Oracle"
-    },
-    {
-      "symbol": "CSCO",
-      "name": "Cisco",
-      "keywords": [
-        "Cisco"
-      ],
-      "query": "Cisco",
-      "official": [
-        "https://newsroom.cisco.com/c/services/i/servlets/newsroom/rssfeed.json?feed=all"
-      ]
-    },
-    {
-      "symbol": "AMD",
-      "name": "AMD",
-      "keywords": [
-        "AMD",
-        "Advanced Micro Devices"
-      ],
-      "query": "AMD"
-    },
-    {
       "symbol": "NVDA",
       "name": "NVIDIA",
       "keywords": [
@@ -95,19 +23,51 @@
       ],
       "query": "Nvidia",
       "official": [
-        "https://nvidianews.nvidia.com/releases.xml"
+        "https://nvidianews.nvidia.com/releases.xml",
+        "https://investor.nvidia.com/rss/pressrelease.aspx"
       ]
     },
     {
-      "symbol": "NET",
-      "name": "Cloudflare",
+      "symbol": "AMD",
+      "name": "AMD",
       "keywords": [
-        "Cloudflare"
+        "AMD",
+        "Advanced Micro Devices"
       ],
-      "query": "Cloudflare",
+      "query": "AMD",
       "official": [
-        "https://blog.cloudflare.com/rss/"
+        "https://ir.amd.com/news-events/press-releases/rss"
       ]
+    },
+    {
+      "symbol": "INTC",
+      "name": "Intel",
+      "keywords": [
+        "Intel",
+        "INTC"
+      ],
+      "query": "Intel",
+      "official": [
+        "https://www.intc.com/news-events/press-releases/rss"
+      ]
+    },
+    {
+      "symbol": "TSM",
+      "name": "TSMC",
+      "keywords": [
+        "TSMC",
+        "Taiwan Semiconductor"
+      ],
+      "query": "\"TSMC\" OR \"Taiwan Semiconductor\""
+    },
+    {
+      "symbol": "AVGO",
+      "name": "Broadcom",
+      "keywords": [
+        "Broadcom",
+        "AVGO"
+      ],
+      "query": "Broadcom"
     },
     {
       "symbol": "MU",
@@ -125,107 +85,47 @@
         "Sandisk",
         "SNDK"
       ],
-      "query": "SanDisk"
-    },
-    {
-      "symbol": "MDB",
-      "name": "MongoDB",
-      "keywords": [
-        "MongoDB",
-        "MDB"
-      ],
-      "query": "MongoDB"
-    },
-    {
-      "symbol": "PLTR",
-      "name": "Palantir",
-      "keywords": [
-        "Palantir",
-        "PLTR"
-      ],
-      "query": "Palantir",
-      "contracts": true
-    },
-    {
-      "symbol": "FIDELITY",
-      "name": "Fidelity ETF",
-      "keywords": [
-        "Fidelity"
-      ],
-      "query": "Fidelity ETF",
-      "yahoo": false
-    },
-    {
-      "symbol": "MSFT",
-      "name": "Microsoft",
-      "keywords": [
-        "Microsoft",
-        "MSFT"
-      ],
-      "query": "Microsoft",
+      "query": "SanDisk",
       "official": [
-        "https://news.microsoft.com/feed/"
+        "https://investor.sandisk.com/rss/news-releases.xml"
       ]
     },
     {
-      "symbol": "CRWD",
-      "name": "CrowdStrike",
+      "symbol": "SKHY",
+      "name": "SK hynix",
       "keywords": [
-        "CrowdStrike",
-        "Crowdstrike",
-        "CRWD"
+        "SK Hynix",
+        "SK hynix",
+        "Hynix"
       ],
-      "query": "CrowdStrike"
-    },
-    {
-      "symbol": "META",
-      "name": "Meta",
-      "keywords": [
-        "Meta Platforms",
-        "Meta",
-        "META"
-      ],
-      "query": "\"Meta Platforms\" OR Meta",
+      "query": "\"SK Hynix\"",
+      "yahoo": false,
+      "price_symbol": "000660.KS",
       "official": [
-        "https://about.fb.com/feed/"
+        "https://news.skhynix.com/feed/"
       ]
     },
     {
-      "symbol": "AAPL",
-      "name": "Apple",
+      "symbol": "ASML",
+      "name": "ASML",
       "keywords": [
-        "Apple",
-        "AAPL",
-        "iPhone",
-        "Tim Cook",
-        "苹果"
+        "ASML"
       ],
-      "query": "Apple OR AAPL",
+      "query": "ASML",
       "official": [
-        "https://www.apple.com/newsroom/rss-feed.rss"
+        "https://investor.asml.com/rss/news-releases.xml"
       ]
     },
     {
-      "symbol": "INTC",
-      "name": "Intel",
+      "symbol": "LITE",
+      "name": "Lumentum",
       "keywords": [
-        "Intel",
-        "INTC"
+        "Lumentum",
+        "LITE"
       ],
-      "query": "Intel"
-    },
-    {
-      "symbol": "GOOGL",
-      "name": "Alphabet",
-      "keywords": [
-        "Alphabet",
-        "Google",
-        "GOOGL",
-        "GOOG"
-      ],
-      "query": "Alphabet OR Google",
+      "query": "Lumentum",
       "official": [
-        "https://blog.google/rss/"
+        "https://investor.lumentum.com/rss/pressrelease.aspx"
       ]
     },
     {
@@ -247,45 +147,159 @@
       ]
     },
     {
-      "symbol": "LITE",
-      "name": "Lumentum",
+      "symbol": "CSCO",
+      "name": "Cisco",
       "keywords": [
-        "Lumentum",
-        "LITE"
+        "Cisco"
       ],
-      "query": "Lumentum"
+      "query": "Cisco",
+      "official": [
+        "https://newsroom.cisco.com/c/services/i/servlets/newsroom/rssfeed.json?feed=all"
+      ]
     },
     {
-      "symbol": "000660.KS",
-      "name": "SK Hynix",
+      "symbol": "DELL",
+      "name": "Dell",
       "keywords": [
-        "SK Hynix",
-        "SK hynix",
-        "Hynix"
+        "Dell"
       ],
-      "query": "\"SK Hynix\"",
-      "yahoo": false
+      "query": "\"Dell Technologies\" OR Dell",
+      "official": [
+        "https://investors.delltechnologies.com/rss/news-releases.xml"
+      ]
     },
     {
-      "symbol": "SPACEX",
-      "name": "SpaceX",
+      "symbol": "HPE",
+      "name": "HPE",
       "keywords": [
-        "SpaceX",
-        "Starlink",
-        "Starship"
+        "Hewlett Packard Enterprise",
+        "HPE"
       ],
-      "query": "SpaceX OR Starlink",
-      "yahoo": false,
+      "query": "\"Hewlett Packard Enterprise\" OR HPE",
+      "official": [
+        "https://www.hpe.com/us/en/newsroom/rss.xml"
+      ]
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft",
+      "keywords": [
+        "Microsoft",
+        "MSFT"
+      ],
+      "query": "Microsoft",
+      "official": [
+        "https://news.microsoft.com/feed/",
+        "https://news.microsoft.com/source/feed/"
+      ]
+    },
+    {
+      "symbol": "ORCL",
+      "name": "Oracle",
+      "keywords": [
+        "Oracle"
+      ],
+      "query": "Oracle"
+    },
+    {
+      "symbol": "IBM",
+      "name": "IBM",
+      "keywords": [
+        "IBM"
+      ],
+      "query": "IBM",
+      "official": [
+        "https://newsroom.ibm.com/announcements?pagetemplate=rss"
+      ]
+    },
+    {
+      "symbol": "NET",
+      "name": "Cloudflare",
+      "keywords": [
+        "Cloudflare"
+      ],
+      "query": "Cloudflare",
+      "official": [
+        "https://blog.cloudflare.com/rss/"
+      ]
+    },
+    {
+      "symbol": "CRWD",
+      "name": "CrowdStrike",
+      "keywords": [
+        "CrowdStrike",
+        "Crowdstrike",
+        "CRWD"
+      ],
+      "query": "CrowdStrike",
+      "official": [
+        "https://ir.crowdstrike.com/rss/news-releases.xml"
+      ]
+    },
+    {
+      "symbol": "PLTR",
+      "name": "Palantir",
+      "keywords": [
+        "Palantir",
+        "PLTR"
+      ],
+      "query": "Palantir",
       "contracts": true
     },
     {
-      "symbol": "005930.KS",
-      "name": "Samsung",
+      "symbol": "AAPL",
+      "name": "Apple",
       "keywords": [
-        "Samsung"
+        "Apple",
+        "AAPL",
+        "iPhone",
+        "Tim Cook",
+        "苹果"
       ],
-      "query": "\"Samsung Electronics\" OR Samsung",
-      "yahoo": false
+      "query": "Apple OR AAPL",
+      "official": [
+        "https://www.apple.com/newsroom/rss-feed.rss"
+      ]
+    },
+    {
+      "symbol": "META",
+      "name": "Meta",
+      "keywords": [
+        "Meta Platforms",
+        "Meta",
+        "META"
+      ],
+      "query": "\"Meta Platforms\" OR Meta",
+      "official": [
+        "https://about.fb.com/feed/"
+      ]
+    },
+    {
+      "symbol": "GOOGL",
+      "name": "Alphabet",
+      "keywords": [
+        "Alphabet",
+        "Google",
+        "GOOGL",
+        "GOOG"
+      ],
+      "query": "Alphabet OR Google",
+      "official": [
+        "https://blog.google/rss/"
+      ]
+    },
+    {
+      "symbol": "AMZN",
+      "name": "Amazon",
+      "keywords": [
+        "Amazon",
+        "AMZN",
+        "AWS"
+      ],
+      "query": "Amazon OR AWS",
+      "official": [
+        "https://www.aboutamazon.com/news/rss"
+      ]
     },
     {
       "symbol": "UBER",
@@ -297,12 +311,26 @@
       "query": "Uber"
     },
     {
-      "symbol": "ASML",
-      "name": "ASML",
+      "symbol": "TSLA",
+      "name": "Tesla",
       "keywords": [
-        "ASML"
+        "Tesla",
+        "TSLA"
       ],
-      "query": "ASML"
+      "query": "Tesla"
+    },
+    {
+      "symbol": "SPCX",
+      "name": "SpaceX",
+      "keywords": [
+        "SpaceX",
+        "SPCX",
+        "Starlink",
+        "Starship"
+      ],
+      "query": "SpaceX OR Starlink",
+      "yahoo": false,
+      "contracts": true
     },
     {
       "symbol": "GD",
@@ -321,7 +349,10 @@
         "Northrop"
       ],
       "query": "\"Northrop Grumman\"",
-      "contracts": true
+      "contracts": true,
+      "official": [
+        "https://investor.northropgrumman.com/rss/news-releases.xml"
+      ]
     },
     {
       "symbol": "LMT",
@@ -335,6 +366,124 @@
       "official": [
         "https://news.lockheedmartin.com/news-releases?pagetemplate=rss"
       ]
+    },
+    {
+      "symbol": "RTX",
+      "name": "RTX",
+      "keywords": [
+        "RTX",
+        "Raytheon",
+        "Pratt & Whitney",
+        "Collins Aerospace"
+      ],
+      "query": "RTX OR Raytheon",
+      "contracts": true
+    },
+    {
+      "symbol": "WMT",
+      "name": "Walmart",
+      "keywords": [
+        "Walmart",
+        "WMT"
+      ],
+      "query": "Walmart"
+    },
+    {
+      "symbol": "PG",
+      "name": "Procter & Gamble",
+      "keywords": [
+        "Procter & Gamble",
+        "Procter and Gamble",
+        "P&G"
+      ],
+      "query": "\"Procter & Gamble\""
+    },
+    {
+      "symbol": "JNJ",
+      "name": "Johnson & Johnson",
+      "keywords": [
+        "Johnson & Johnson",
+        "J&J",
+        "JNJ"
+      ],
+      "query": "\"Johnson & Johnson\""
+    },
+    {
+      "symbol": "LLY",
+      "name": "Eli Lilly",
+      "keywords": [
+        "Eli Lilly",
+        "LLY",
+        "Mounjaro",
+        "Zepbound"
+      ],
+      "query": "\"Eli Lilly\""
+    },
+    {
+      "symbol": "JPM",
+      "name": "JPMorgan",
+      "keywords": [
+        "JPMorgan",
+        "JP Morgan",
+        "Jamie Dimon"
+      ],
+      "query": "JPMorgan"
+    },
+    {
+      "symbol": "XOM",
+      "name": "Exxon Mobil",
+      "keywords": [
+        "Exxon",
+        "ExxonMobil",
+        "XOM"
+      ],
+      "query": "Exxon",
+      "official": [
+        "https://investor.exxonmobil.com/company-information/press-releases/rss"
+      ]
+    },
+    {
+      "symbol": "NFLX",
+      "name": "Netflix",
+      "keywords": [
+        "Netflix",
+        "NFLX"
+      ],
+      "query": "Netflix"
+    },
+    {
+      "symbol": "GOLD",
+      "name": "Gold",
+      "keywords": [
+        "gold price",
+        "gold prices",
+        "Gold price",
+        "Gold prices",
+        "bullion",
+        "gold futures",
+        "Gold futures",
+        "safe-haven"
+      ],
+      "query": "\"gold price\" OR \"gold prices\" OR bullion",
+      "suffix": " when:1d",
+      "yahoo": false,
+      "price_symbol": "GOLD.PA"
+    },
+    {
+      "symbol": "DTLA",
+      "name": "US long-term Treasuries",
+      "keywords": [
+        "Treasury yields",
+        "Treasury yield",
+        "Treasuries",
+        "long bond",
+        "30-year yield",
+        "bond market"
+      ],
+      "query": "\"Treasury yields\" OR Treasuries",
+      "suffix": " when:1d",
+      "yahoo": false,
+      "price_symbol": "DTLA.L"
     }
   ]
 }

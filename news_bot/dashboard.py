@@ -16,7 +16,7 @@ from news import CONFIG, HEADERS, db, first_match, keyword_patterns, log
 
 BASE = Path(__file__).resolve().parent
 OUT = BASE / "dashboard.html"
-NO_CHART = {"SPACEX", "FIDELITY"}  # not listed / no specific ETF chosen yet
+NO_CHART = set()  # symbols without price data (config.json "price_symbol" gives the Yahoo ticker when it differs)
 NEWS_DAYS = 14
 NEWS_PER_STOCK = 80
 JEV_BACKFILL = 1500  # max older items to judge per run (Jev is cheap: a few hundred items cost under 1 cent)
@@ -123,8 +123,9 @@ def build_data():
         log.info("Dashboard: Jev judged %d older items", n)
 
     chart_syms = [s for s in stocks_cfg if s not in NO_CHART]
+    px = {s: stocks_cfg[s].get("price_symbol", s) for s in stocks_cfg}  # Yahoo ticker, e.g. 000660.KS for SK hynix
     with ThreadPoolExecutor(max_workers=6) as pool:
-        prices = dict(zip(chart_syms, pool.map(fetch_prices, chart_syms)))
+        prices = dict(zip(chart_syms, pool.map(fetch_prices, [px[s] for s in chart_syms])))
 
     since = (datetime.now(timezone.utc) - timedelta(days=NEWS_DAYS)).isoformat()
     stocks, hits, judged = [], 0, 0
@@ -141,7 +142,7 @@ def build_data():
             if first_match(t, excl):
                 continue
             item = {"title": t, "link": link, "source": src, "published": pub,
-                    "summary": summ or "", "tag": tag or "news", "jev": None, "move": price_moves(bars, pub, sym)}
+                    "summary": summ or "", "tag": tag or "news", "jev": None, "move": price_moves(bars, pub, px[sym])}
             if jl:
                 item["jev"] = {"label": jl, "prob": jp, "impact": ji, "relevant": jr}
                 mv = item["move"]
@@ -156,9 +157,7 @@ def build_data():
             "bars": bars, "last": last, "change": round(last / prev - 1, 4) if last and prev else None,
             "news": news, "score": jev_score(news),
             "counts": {k: sum(1 for x in news if x["jev"] and x["jev"]["label"] == k) for k in ("up", "down", "neutral")},
-            "chart_note": "Not publicly listed, no price data" if sym == "SPACEX" else (
-                "Choose a specific ETF ticker in config.json" if sym == "FIDELITY" else
-                ("" if bars else "Price data unavailable right now")),
+            "chart_note": "" if bars else "Price data unavailable right now",
         })
     return {
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),

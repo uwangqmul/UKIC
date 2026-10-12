@@ -113,7 +113,8 @@ def assets():
 def save_assets(body):
     meta = read_json(ASSETS_FILE, {"assets": {}, "horizon_rules": {}})
     for row in body.get("assets", []):
-        meta["assets"][row["symbol"]] = {"sector": str(row.get("sector", "Other"))[:40], "trade": bool(row.get("trade"))}
+        meta["assets"][row["symbol"]] = {**meta["assets"].get(row["symbol"], {}),
+                                         "sector": str(row.get("sector", "Other"))[:40], "trade": bool(row.get("trade"))}
     if "horizon_rules" in body:
         for kind in ("immediate", "delayed"):
             words = body["horizon_rules"].get(kind, {}).get("keywords")

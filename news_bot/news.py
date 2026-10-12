@@ -177,7 +177,7 @@ def build_jobs():
     jobs = []
     yahoo_syms = []
     for s in CONFIG["stocks"]:
-        jobs.append((google_url(s["query"] + CONFIG["google_suffix"]), "news", [s["symbol"]]))
+        jobs.append((google_url(s["query"] + s.get("suffix", CONFIG["google_suffix"])), "news", [s["symbol"]]))
         if s.get("contracts"):
             jobs.append((google_url(s["query"] + CONFIG["contract_suffix"]), "contract", [s["symbol"]]))
         for url in s.get("official", []):

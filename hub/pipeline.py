@@ -13,6 +13,7 @@ Usage: python pipeline.py [morning|intraday|night|manual]
        python pipeline.py telegram <decision.json>
 """
 import json
+import re
 import sqlite3
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -54,7 +55,9 @@ def stock_list():
 def horizon_of(text, rules):
     low = text.lower()
     for kind in ("immediate", "delayed"):
-        if any(k.lower() in low for k in rules.get(kind, {}).get("keywords", [])):
+        # keywords match at the start of a word: "fine" finds "fined" and "fines" but not "define"; "order" not "border"
+        if any(re.search(r"(?<!\w)" + re.escape(k.lower()), low)
+               for k in rules.get(kind, {}).get("keywords", [])):
             return kind
     return "delayed"
 

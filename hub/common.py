@@ -63,13 +63,13 @@ DEFAULT_SETTINGS = {
     "sell_threshold": 0.60,          # Jev probability of "price down" needed for a SELL suggestion
     "min_margin": 0.15,              # rise vs down must differ by at least this much
     "default_portfolio": "First Portfolio",
-    "tg_default_amount_usd": 10000,  # Telegram "buy apple" with no shares or amount uses this; portfolio = default_portfolio
+    "tg_default_amount_usd": 4000,   # Telegram "buy apple" with no shares or amount uses this (~3% of the portfolio); portfolio = default_portfolio
     # automatic orders (autotrade.py); auto_mode is changed only from the Orders tab and starts off
     "auto_mode": "off",              # off / dry_run / live
     "auto_portfolio": "",            # competition portfolio name on UMushroom
     "auto_practice_portfolio": "",   # practice portfolio: dry runs submit real orders here, never in the competition
     "auto_min_prob": 0.70,
-    "auto_amount_usd": 10000,
+    "auto_amount_usd": 4000,         # ~3% of the 100,000 GBP portfolio; one asset may hold at most 6%
     "auto_sell": "all",
     "auto_max_per_run": 2,
     "auto_max_per_day": 6,

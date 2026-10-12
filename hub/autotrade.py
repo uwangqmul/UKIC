@@ -17,7 +17,7 @@ Limits (all in settings):
   auto_max_per_run      orders per reasoning run
   auto_max_per_day      orders per London day
   auto_cooldown_hours   no second order for the same stock within this time
-  auto_us_only          skip tickers with a market suffix (e.g. 005930.KS)
+  auto_us_only          skip tickers with a market suffix (e.g. 005930.KS) and assets marked "us": false in assets.json
   auto_run_kinds        which runs may trade (morning / intraday)
 
 Live mode can only be switched on after a dry run submitted an order successfully in the practice portfolio
@@ -27,7 +27,7 @@ import json
 import threading
 from datetime import datetime, timedelta
 
-from common import DATA, DECISIONS, load_settings, log, now_utc, read_json, save_settings, to_london
+from common import ASSETS_FILE, DATA, DECISIONS, load_settings, log, now_utc, read_json, save_settings, to_london
 from trader_bridge import holdings, trade
 
 LEDGER = DATA / "auto_trades.jsonl"
@@ -132,6 +132,7 @@ def pick(dec, s):
     cutoff = now - timedelta(hours=float(s["auto_cooldown_hours"]))
     recent = {r["symbol"] for r in past if datetime.strptime(r["time"], "%Y-%m-%d %H:%M") >= cutoff}
     held = holdings(portfolio_for(s, mode))
+    non_us = {k for k, v in read_json(ASSETS_FILE, {}).get("assets", {}).items() if v.get("us") is False}
     orders, skipped = [], []
     for r in dec["rows"]:
         if r["action"] == "HOLD":
@@ -140,7 +141,7 @@ def pick(dec, s):
         why = None
         if r["prob"] < float(s["auto_min_prob"]):
             why = f"probability {r['prob']:.0%} below {float(s['auto_min_prob']):.0%}"
-        elif s["auto_us_only"] and "." in sym:
+        elif s["auto_us_only"] and ("." in sym or sym in non_us):
             why = "not a US ticker"
         elif sym in recent:
             why = f"already traded in the last {s['auto_cooldown_hours']}h"
