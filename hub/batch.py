@@ -87,7 +87,9 @@ def _work():
             res = trade(r["action"], r["company"], _state["portfolio"], shares=r["shares"], amount=r["amount"],
                         submit=_state["submit"])
             tail = [x for x in res["output"].splitlines() if x.strip()][-2:]
-            if not res["ok"]:
+            if res["submitted"] == "unknown":
+                r.update(status="unconfirmed", result="sent but not confirmed: check UMushroom")
+            elif not res["ok"]:
                 r.update(status="failed", result=" / ".join(tail)[-400:])
             elif not _state["submit"]:
                 r.update(status="previewed", result="form filled in, not submitted")

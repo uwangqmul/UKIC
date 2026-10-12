@@ -1,131 +1,167 @@
 {
   "assets": {
-    "AMD": {
-      "sector": "Semiconductors",
+    "NVDA": {
+      "sector": "Chips",
       "trade": true
     },
-    "NVDA": {
-      "sector": "Semiconductors",
+    "AMD": {
+      "sector": "Chips",
       "trade": true
     },
     "INTC": {
-      "sector": "Semiconductors",
+      "sector": "Chips",
+      "trade": true
+    },
+    "TSM": {
+      "sector": "Chips",
+      "trade": true
+    },
+    "AVGO": {
+      "sector": "Chips",
       "trade": true
     },
     "MU": {
-      "sector": "Semiconductors",
+      "sector": "Memory & equipment",
       "trade": true
     },
-    "SNDK": {
-      "sector": "Semiconductors",
-      "trade": true
-    },
-    "000660.KS": {
-      "sector": "Semiconductors",
-      "trade": true
-    },
-    "005930.KS": {
-      "sector": "Semiconductors",
-      "trade": true
+    "HY9H": {
+      "sector": "Memory & equipment",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/hy9h-sk-hynix"
     },
     "ASML": {
-      "sector": "Semiconductors",
-      "trade": true
-    },
-    "COHR": {
-      "sector": "Optical & components",
-      "trade": true
+      "sector": "Memory & equipment",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/asml-asml-hldg"
     },
     "LITE": {
-      "sector": "Optical & components",
+      "sector": "Optical & networking",
       "trade": true,
       "umushroom": "https://umushroom.com/en/equity/lite-lumentum-hldg"
     },
     "GLW": {
-      "sector": "Optical & components",
-      "trade": true
-    },
-    "HPQ": {
-      "sector": "Hardware",
-      "trade": true
-    },
-    "DELL": {
-      "sector": "Hardware",
-      "trade": true
-    },
-    "AAPL": {
-      "sector": "Hardware",
+      "sector": "Optical & networking",
       "trade": true
     },
     "CSCO": {
-      "sector": "Hardware",
+      "sector": "Optical & networking",
       "trade": true
     },
-    "TEAM": {
-      "sector": "Cloud & software",
+    "DELL": {
+      "sector": "Servers",
       "trade": true
     },
-    "IBM": {
-      "sector": "Cloud & software",
-      "trade": true
-    },
-    "ORCL": {
-      "sector": "Cloud & software",
-      "trade": true
-    },
-    "NET": {
-      "sector": "Cloud & software",
-      "trade": true,
-      "umushroom": "https://umushroom.com/en/equity/net-cloudflare"
-    },
-    "MDB": {
-      "sector": "Cloud & software",
+    "HPE": {
+      "sector": "Servers",
       "trade": true
     },
     "MSFT": {
-      "sector": "Cloud & software",
+      "sector": "Software & cloud",
       "trade": true
     },
+    "ORCL": {
+      "sector": "Software & cloud",
+      "trade": true
+    },
+    "IBM": {
+      "sector": "Software & cloud",
+      "trade": true
+    },
+    "NET": {
+      "sector": "Software & cloud",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/net-cloudflare"
+    },
     "CRWD": {
-      "sector": "Cloud & software",
+      "sector": "Software & cloud",
       "trade": true
     },
     "PLTR": {
-      "sector": "Cloud & software",
+      "sector": "Software & cloud",
+      "trade": true
+    },
+    "AAPL": {
+      "sector": "Platforms",
       "trade": true
     },
     "META": {
-      "sector": "Internet & platforms",
+      "sector": "Platforms",
       "trade": true,
       "umushroom": "https://umushroom.com/en/equity/meta-meta-platforms"
     },
     "GOOGL": {
-      "sector": "Internet & platforms",
+      "sector": "Platforms",
+      "trade": true
+    },
+    "AMZN": {
+      "sector": "Platforms",
       "trade": true
     },
     "UBER": {
-      "sector": "Internet & platforms",
+      "sector": "Mobility & space",
+      "trade": true
+    },
+    "TSLA": {
+      "sector": "Mobility & space",
+      "trade": true
+    },
+    "SPCX": {
+      "sector": "Mobility & space",
       "trade": true
     },
     "GD": {
-      "sector": "Defence & space",
+      "sector": "Defense",
       "trade": true
     },
     "NOC": {
-      "sector": "Defence & space",
+      "sector": "Defense",
       "trade": true
     },
     "LMT": {
-      "sector": "Defence & space",
+      "sector": "Defense",
       "trade": true
     },
-    "SPACEX": {
-      "sector": "Defence & space",
+    "RTX": {
+      "sector": "Defense",
       "trade": true
     },
-    "FIDELITY": {
-      "sector": "Funds",
+    "WMT": {
+      "sector": "Hedges",
       "trade": true
+    },
+    "PG": {
+      "sector": "Hedges",
+      "trade": true
+    },
+    "JNJ": {
+      "sector": "Hedges",
+      "trade": true
+    },
+    "LLY": {
+      "sector": "Hedges",
+      "trade": true
+    },
+    "JPM": {
+      "sector": "Hedges",
+      "trade": true
+    },
+    "XOM": {
+      "sector": "Hedges",
+      "trade": true
+    },
+    "NFLX": {
+      "sector": "Hedges",
+      "trade": true
+    },
+    "GOLD": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/etf/amundi-physical-gold-etc-c-2"
+    },
+    "DTLA": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/etf/ishares-treasury-bond-20-yr-ucits-etf-usd-acc"
     }
   },
   "horizon_rules": {

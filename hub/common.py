@@ -65,7 +65,7 @@ DEFAULT_SETTINGS = {
     "default_portfolio": "First Portfolio",
     "tg_portfolios": ["First Portfolio", "JEVsimu"],  # portfolios offered by the Telegram order menu (/trade)
     "tg_amounts": [1000, 2500, 5000, 10000],          # amount buttons (USD) in the Telegram order menu
-    "tg_default_amount_usd": 10000,  # Telegram "buy apple" with no shares or amount uses this; portfolio = default_portfolio
+    "tg_default_amount_usd": 3000,   # Telegram "buy apple" with no shares or amount uses this; portfolio = default_portfolio
     # automatic orders (autotrade.py); auto_mode is changed only from the Orders tab and starts off
     "auto_mode": "off",              # off / dry_run / live
     "auto_portfolio": "",            # competition portfolio name on UMushroom
