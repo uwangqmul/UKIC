@@ -79,11 +79,28 @@ export async function findEquity(page, company) {
   const direct = directEquityUrl(company);
   if (direct) return { name: "", ticker: "", href: new URL(direct).pathname, url: direct, alternatives: [] };
   // Below roughly 1280px window width (e.g. side by side with the journal) the top search box is hidden, so use the site's Ctrl+K shortcut.
+  // The page may still be loading when an order starts (a fresh Chrome, or one order right after another), so wait for
+  // the search box before deciding, and try opening the search a few times.
   const trigger = page.locator(S.searchTrigger).first();
-  if (await trigger.isVisible().catch(() => false)) await trigger.click();
-  else await page.keyboard.press("Control+k");
   const input = page.getByPlaceholder("Search").last();
-  await input.waitFor({ state: "visible" });
+  await page.waitForLoadState("domcontentloaded").catch(() => {});
+  for (let attempt = 1; ; attempt++) {
+    await trigger.waitFor({ state: "visible", timeout: 4_000 }).catch(() => {});
+    if (await trigger.isVisible().catch(() => false)) await trigger.click();
+    else {
+      // Ctrl+K needs the page focused (without clicking anything on it)
+      await page.bringToFront().catch(() => {});
+      await page.evaluate(() => { window.focus(); document.activeElement?.blur?.(); }).catch(() => {});
+      await page.keyboard.press("Control+k");
+    }
+    try {
+      await input.waitFor({ state: "visible", timeout: 6_000 });
+      break;
+    } catch (e) {
+      if (attempt >= 3) throw new Error(`The UMushroom search box did not open after ${attempt} tries: ${e.message}`);
+      await page.keyboard.press("Escape").catch(() => {});
+    }
+  }
   await input.fill(company);
   const results = page.locator(S.searchResult);
   await results.first().waitFor({ state: "visible", timeout: 15_000 });

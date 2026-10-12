@@ -38,7 +38,8 @@
     },
     "LITE": {
       "sector": "Optical & components",
-      "trade": true
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/lite-lumentum-hldg"
     },
     "GLW": {
       "sector": "Optical & components",
@@ -74,7 +75,8 @@
     },
     "NET": {
       "sector": "Cloud & software",
-      "trade": true
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/net-cloudflare"
     },
     "MDB": {
       "sector": "Cloud & software",
@@ -94,7 +96,8 @@
     },
     "META": {
       "sector": "Internet & platforms",
-      "trade": true
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/meta-meta-platforms"
     },
     "GOOGL": {
       "sector": "Internet & platforms",

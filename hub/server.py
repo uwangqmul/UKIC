@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import autotrade
+import batch
 import pipeline
 import scheduler
 import tg_commands
@@ -113,7 +114,9 @@ def assets():
 def save_assets(body):
     meta = read_json(ASSETS_FILE, {"assets": {}, "horizon_rules": {}})
     for row in body.get("assets", []):
-        meta["assets"][row["symbol"]] = {"sector": str(row.get("sector", "Other"))[:40], "trade": bool(row.get("trade"))}
+        # keep fields the page doesn't edit (e.g. "umushroom", the exact page for an ambiguous ticker)
+        meta["assets"][row["symbol"]] = {**meta["assets"].get(row["symbol"], {}),
+                                         "sector": str(row.get("sector", "Other"))[:40], "trade": bool(row.get("trade"))}
     if "horizon_rules" in body:
         for kind in ("immediate", "delayed"):
             words = body["horizon_rules"].get(kind, {}).get("keywords")
@@ -263,6 +266,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, watchlist())
             if u.path == "/api/autotrade":
                 return self.send(200, auto_state())
+            if u.path == "/api/batch":
+                return self.send(200, batch.state())
             if u.path == "/api/decisions":
                 return self.send(200, decisions())
             if u.path == "/api/brief":
@@ -314,6 +319,14 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/autotrade/test":
                 sym = str(body.get("symbol") or "AAPL").strip().upper()
                 return self.send(200, {**autotrade.test_dry_run(sym), "state": auto_state()})
+            if u.path == "/api/batch/start":
+                submit = body.get("submit") is True
+                # submitting needs the portfolio name typed a second time, so a stray click can't place a whole list
+                if submit and str(body.get("confirm", "")).strip() != str(body.get("portfolio", "")).strip():
+                    return self.send(400, {"ok": False, "error": "type the portfolio name to confirm"})
+                return self.send(200, batch.start(body.get("portfolio"), body.get("orders"), submit))
+            if u.path == "/api/batch/stop":
+                return self.send(200, batch.stop())
             if u.path == "/api/launch":
                 return self.send(200, launch(body.get("what")))
             if u.path == "/api/skill":

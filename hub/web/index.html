@@ -149,6 +149,20 @@ iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;ba
     </div>
     <p class="muted">Preview opens Chrome and fills in the form without submitting. When it looks right, click "Confirm and submit order". Close any Chrome window the project opened last time before ordering.</p>
     <pre id="o-out">Nothing yet</pre></div>
+  <div class="card" id="batch-card"><b>Batch orders (from a CSV)</b>
+    <div class="muted" style="margin:6px 0">Load a CSV such as <code>jevsimu_orders.csv</code> (it needs an "Order with" or "Ticker" column and a "Weight %", "Or buy amount" or "Buy shares" column), or paste one order per line: <code>AAPL, 3.5%</code>, <code>AAPL, $4633.45</code> or <code>AAPL, 13.7133 shares</code>. With "Weight % × total amount", each order is its weight times the total you enter. The orders run one after another in the portfolio below. "Preview all" fills in each form without submitting.</div>
+    <label class="row"><span>Portfolio</span><input id="b-portfolio" placeholder="JEVsimu" style="width:260px"></label>
+    <label class="row"><span>Buy by</span><select id="b-by" onchange="batchParse()"><option value="weight">Weight % × total amount</option><option value="amount">Amount</option><option value="shares">Shares</option></select></label>
+    <label class="row" id="b-total-row"><span>Total to invest (USD)</span><input id="b-total" type="number" min="0" step="100" placeholder="e.g. 100000" style="width:160px" oninput="batchParse()"> <span class="muted">each order = weight % × this total</span></label>
+    <label class="row"><span>CSV file</span><input type="file" accept=".csv,text/csv" onchange="batchFile(this)"></label>
+    <textarea id="b-text" style="min-height:120px" placeholder="Paste the CSV or one order per line" oninput="batchParse()"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn primary" onclick="batchRun(false)">Preview all (no orders)</button>
+      <button class="btn danger" onclick="batchRun(true)">Submit all orders</button>
+      <button class="btn" onclick="post('/api/batch/stop',{}).then(renderBatch)">Stop</button>
+    </div>
+    <div id="b-meta" class="muted" style="margin-top:8px"></div>
+    <table id="b-table"></table></div>
   <div class="card" id="auto-card"><b>Automatic orders</b> <span id="auto-mode" class="pill"></span>
     <div class="muted" style="margin:6px 0">Dry run works exactly like live (same picks and limits, several stocks per round, orders really submitted) but in the practice portfolio, leaving the competition portfolio untouched. Once the competition page is out, fill in the competition and practice portfolios, click "Dry run once" or let dry-run mode run a few rounds, and only after a successful submission can live mode be switched on. Until then, competition orders are confirmed by you manually.</div>
     <div id="auto-gate" style="margin:6px 0"></div>
@@ -208,7 +222,7 @@ function nav(){$("nav").innerHTML=TABS.map(([id,t])=>`<button data-id="${id}">${
 function show(id){try{localStorage.setItem("tab",id)}catch(e){}
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.id===id));
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("active",s.id===id));
-  ({orders:loadAuto,watch:loadWatch,news:loadNews,decisions:loadDecisions,assets:loadAssets,skill:loadSkill,logs:loadLog,schedule:renderSchedule,
+  ({orders:()=>{loadAuto();renderBatch()},watch:loadWatch,news:loadNews,decisions:loadDecisions,assets:loadAssets,skill:loadSkill,logs:loadLog,schedule:renderSchedule,
     journal:()=>{if(!$("journal-frame").src)$("journal-frame").src="http://127.0.0.1:6420/"}}[id]||(()=>{}))()}
 
 async function refresh(){S=await get("/api/status");const c=S.clock,h=S.health,r=S.run;
@@ -227,15 +241,16 @@ async function refresh(){S=await get("/api/status");const c=S.clock,h=S.health,r
 const kv=rows=>rows.map(([k,v])=>`<div class="kv"><span class="muted">${k}</span><span>${v}</span></div>`).join("");
 
 function renderSchedule(){if(!S)return;const s=S.settings;
-  const f=[["scheduler_enabled","Scheduled reasoning","bool"],["market_mode","Market mode","sel",[["eu_us","EU + US (09:00 until 30 min before US close)"],["us","US only (US open to close)"]]],["eu_start","EU mode start time","time"],["eu_us_end_before_us_close_min","EU mode ends this many minutes before US close","num"],["interval_min","Intraday interval","sel",[[30,"30 minutes"],[60,"60 minutes"]]],["weekdays_only","Weekdays only","bool"],["morning_run","Morning reasoning time","time"],["night_runs","Overnight news collection only (comma-separated)","list"],["telegram_morning","Send morning result to Telegram","bool"],["telegram_intraday","Send intraday results to Telegram","sel",[["actionable","Only with buy/sell suggestions"],["all","Every time"],["off","Never"]]],["reminders","Reminder before market open","bool"],["reminder_before_min","Minutes before open to remind","num"],["lookback_hours","Hours of news read per run","num"],["buy_threshold","Buy threshold (probability of price rise)","prob"],["sell_threshold","Sell threshold (probability of price fall)","prob"],["min_margin","Minimum gap between rise and fall probability","prob"],["default_portfolio","Default portfolio","text"]];
+  const f=[["scheduler_enabled","Scheduled reasoning","bool"],["market_mode","Market mode","sel",[["eu_us","EU + US (09:00 until 30 min before US close)"],["us","US only (US open to close)"]]],["eu_start","EU mode start time","time"],["eu_us_end_before_us_close_min","EU mode ends this many minutes before US close","num"],["interval_min","Intraday interval","sel",[[30,"30 minutes"],[60,"60 minutes"]]],["weekdays_only","Weekdays only","bool"],["morning_run","Morning reasoning time","time"],["night_runs","Overnight news collection only (comma-separated)","list"],["telegram_morning","Send morning result to Telegram","bool"],["telegram_intraday","Send intraday results to Telegram","sel",[["actionable","Only with buy/sell suggestions"],["all","Every time"],["off","Never"]]],["reminders","Reminder before market open","bool"],["reminder_before_min","Minutes before open to remind","num"],["lookback_hours","Hours of news read per run","num"],["buy_threshold","Buy threshold (probability of price rise)","prob"],["sell_threshold","Sell threshold (probability of price fall)","prob"],["min_margin","Minimum gap between rise and fall probability","prob"],["default_portfolio","Default portfolio","text"],["tg_portfolios","Telegram /trade menu: portfolios (comma-separated)","names"],["tg_amounts","Telegram /trade menu: amount buttons in USD (comma-separated)","nums"],["tg_default_amount_usd","Telegram: default amount for \"buy Apple\" (USD)","num"]];
   $("sched-form").innerHTML=f.map(([k,l,t,o])=>{const v=s[k];let i;
     if(t==="bool")i=`<input type="checkbox" data-k="${k}" data-t="bool" ${v?"checked":""}>`;
     else if(t==="sel")i=`<select data-k="${k}" data-t="${typeof o[0][0]==="number"?"num":"text"}">${o.map(([a,b])=>`<option value="${a}" ${a==v?"selected":""}>${b}</option>`).join("")}</select>`;
-    else if(t==="list")i=`<input data-k="${k}" data-t="list" value="${esc(v.join(", "))}">`;
+    else if(t==="list"||t==="names"||t==="nums")i=`<input data-k="${k}" data-t="${t}" value="${esc((v||[]).join(", "))}" style="width:${t==="list"?"auto":"420px"}">`;
     else i=`<input data-k="${k}" data-t="${t}" value="${esc(v)}" ${t==="time"?'type="time"':""} style="width:140px">`;
     return `<label class="row"><span>${l}</span>${i}</label>`}).join("")+`<button class="btn primary" onclick="saveSettings()">Save</button>`}
 async function saveSettings(){const b={};document.querySelectorAll("#sched-form [data-k]").forEach(e=>{const t=e.dataset.t;let v=e.value;
-  if(t==="bool")v=e.checked;else if(t==="num"||t==="prob")v=Number(v);else if(t==="list")v=v.split(",").map(x=>x.trim()).filter(x=>/^\d{1,2}:\d{2}$/.test(x));b[e.dataset.k]=v});
+  if(t==="bool")v=e.checked;else if(t==="num"||t==="prob")v=Number(v);else if(t==="list")v=v.split(",").map(x=>x.trim()).filter(x=>/^\d{1,2}:\d{2}$/.test(x));
+  else if(t==="names")v=v.split(",").map(x=>x.trim()).filter(Boolean);else if(t==="nums")v=v.split(",").map(x=>Number(x.trim())).filter(x=>x>0);b[e.dataset.k]=v});
   await post("/api/settings",b);toast("Schedule saved");await refresh();renderSchedule()}
 
 async function loadAssets(){ASSETS=await get("/api/assets");
@@ -332,6 +347,55 @@ async function autoTest(){$("auto-out").style.display="block";
   const r=await post("/api/autotrade/test",{symbol:$("auto-test-sym").value});
   if(r.error==="not found"){$("auto-out").textContent="❌ "+OLD_SERVER;return}
   $("auto-out").textContent=(r.ok&&r.submitted===true?"✅ Dry run succeeded, the order was submitted in the practice portfolio\n":r.submitted==="unknown"?"⚠ Sent but not confirmed, check the practice portfolio on UMushroom\n":"❌ Dry run failed\n")+(r.output||r.error||"");if(r.state){AUTO=r.state;renderAuto()}}
+
+// ---------- batch orders ----------
+let BATCH_ROWS=[],BATCH=null,BATCH_POLL=null;
+function csvLine(line){const out=[];let cur="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];
+  if(q){if(ch==='"'&&line[i+1]==='"'){cur+='"';i++}else if(ch==='"')q=false;else cur+=ch}
+  else if(ch==='"')q=true;else if(ch===","){out.push(cur);cur=""}else cur+=ch}out.push(cur);return out.map(s=>s.trim())}
+function batchFile(input){const f=input.files[0];if(!f)return;f.text().then(t=>{$("b-text").value=t.replace(/^﻿/,"");batchParse()})}
+function batchParse(){const lines=$("b-text").value.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());const by=$("b-by").value;BATCH_ROWS=[];const bad=[];
+  const total=Number($("b-total").value)||0;$("b-total-row").style.display=by==="weight"?"":"none";
+  if(!lines.length){$("b-meta").textContent="";renderBatchTable();return}
+  if(by==="weight"&&!(total>0)){$("b-meta").innerHTML='<span class="warn">Enter the total to invest: each order is weight % × total.</span>';renderBatchTable();return}
+  // weight % → amount (2 decimals); kept on the row so the table shows both
+  const fromWeight=w=>{const x=Number(String(w).replace(/[%\s]/g,""));return x>0?(total*x/100).toFixed(2):""};
+  const head=csvLine(lines[0]).map(h=>h.toLowerCase());const ci=names=>head.findIndex(h=>names.includes(h));
+  const cCo=ci(["order with","ticker","company","symbol"]),cSh=ci(["buy shares","shares"]),cAm=ci(["or buy amount","amount"]),cWt=ci(["weight %","weight","weight%"]),cNm=ci(["name on umushroom","name"]),cAct=ci(["action","side"]);
+  if(cCo>=0&&(cSh>=0||cAm>=0||cWt>=0)){
+    for(const l of lines.slice(1)){const c=csvLine(l);const co=c[cCo]||"";if(!co)continue;
+      let sh=cSh>=0?(c[cSh]||"").replace(/,/g,""):"",am=cAm>=0?(c[cAm]||"").replace(/[$,]/g,""):"",wt=cWt>=0?(c[cWt]||"").replace(/[%\s]/g,""):"";
+      if(by==="weight"){if(!(Number(wt)>0)){bad.push(co+" (no weight)");continue}am=fromWeight(wt);sh=""}
+      else if(by==="amount"&&am)sh="";else if(by==="shares"&&sh)am="";else if(sh&&am)sh="";
+      const act=cAct>=0&&/sell/i.test(c[cAct]||"")?"sell":"buy";
+      if(/\?/.test(co)){bad.push(co+" (check the identifier first)");continue}
+      BATCH_ROWS.push({action:act,company:co,shares:sh,amount:am,weight:by==="weight"?wt:"",name:cNm>=0?c[cNm]:""})}
+  }else{
+    // one order per line: "AAPL, $4633.45", "AAPL, 13.7133 shares" or "AAPL, 3.5%"
+    for(const l of lines){const m=/^\s*(buy|sell)?\s*([^,]+?)\s*,\s*(?:\$\s*([\d,.]+)|([\d.]+)\s*%|([\d.]+|all)\s*(?:shares?)?)\s*$/i.exec(l);
+      if(!m){bad.push(l.slice(0,40));continue}
+      if(m[4]&&!(total>0)){bad.push(l.slice(0,40)+" (weight needs a total)");continue}
+      BATCH_ROWS.push({action:(m[1]||"buy").toLowerCase(),company:m[2],shares:m[5]||"",amount:m[4]?fromWeight(m[4]):(m[3]||"").replace(/,/g,""),weight:m[4]||"",name:""})}
+  }
+  const sum=BATCH_ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0),wsum=BATCH_ROWS.reduce((s,r)=>s+(Number(r.weight)||0),0);
+  $("b-meta").innerHTML=`${BATCH_ROWS.length} orders ready`+(sum?` · total $${sum.toLocaleString("en-US",{maximumFractionDigits:2})}`:"")+(wsum?` (${wsum.toFixed(2)}% of $${total.toLocaleString("en-US")})`:"")+(bad.length?` · <span class="warn">skipped: ${esc(bad.join(" / "))}</span>`:"");renderBatchTable()}
+function renderBatchTable(){const rows=BATCH&&BATCH.rows.length&&(BATCH.running||BATCH.finished)?BATCH.rows:BATCH_ROWS;
+  const icon={waiting:"⏳",running:"▶️",submitted:"✅",previewed:"👁️",failed:"❌",unconfirmed:"⚠",skipped:"⏭️"};
+  $("b-table").innerHTML=rows.length?"<tr><th>#</th><th>Order</th><th>Size</th><th>Status</th></tr>"+rows.map((r,i)=>`<tr><td>${i+1}</td><td class="${r.action==="sell"?"SELL":"BUY"}">${r.action.toUpperCase()} ${esc(r.company)}${r.name?`<div class="muted">${esc(r.name)}</div>`:""}</td><td class="nowrap">${r.amount?"$"+esc(r.amount):esc(r.shares)+" shares"}${r.weight?`<div class="muted">${esc(r.weight)}%</div>`:""}</td><td>${r.status?icon[r.status]+" "+r.status+(r.result?`<div class="muted">${esc(r.result)}</div>`:""):""}</td></tr>`).join(""):""}
+async function renderBatch(){BATCH=await get("/api/batch");if(BATCH.error==="not found"){BATCH=null;return}
+  if(BATCH.rows.length){const c={};BATCH.rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+    $("b-meta").textContent=`${BATCH.submit?"Submitting":"Previewing"} in "${BATCH.portfolio}" · started ${BATCH.started}`+(BATCH.running?"":` · finished ${BATCH.finished}`)+" · "+Object.entries(c).map(([k,v])=>`${v} ${k}`).join(", ")}
+  renderBatchTable();if(!BATCH.running)clearInterval(BATCH_POLL)}
+async function batchRun(submit){const p=$("b-portfolio").value.trim();if(!p){toast("Enter the portfolio name");return}
+  batchParse();if(!BATCH_ROWS.length){toast("Load or paste the orders first");return}
+  let confirmText="";
+  if(submit){const sum=BATCH_ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0);
+    confirmText=prompt(`Submit ${BATCH_ROWS.length} orders in "${p}" on UMushroom, one after another`+(sum?` (about $${sum.toLocaleString("en-US",{maximumFractionDigits:0})} in total)`:"")+`?\nType the portfolio name (${p}) to confirm.`);if(confirmText===null)return;
+    if(confirmText.trim()!==p){toast("The name didn't match, nothing was submitted");return}}
+  const r=await post("/api/batch/start",{portfolio:p,submit,confirm:confirmText,orders:BATCH_ROWS.map(({action,company,shares,amount})=>({action,company,shares,amount}))});
+  if(r.error==="not found"){toast(OLD_SERVER);return}
+  if(!r.ok){toast(r.error||"Could not start");return}
+  toast(submit?"Submitting… Chrome will open for each order":"Previewing… Chrome will open for each order");BATCH=r.state;renderBatch();clearInterval(BATCH_POLL);BATCH_POLL=setInterval(renderBatch,4000)}
 
 async function loadSkill(){const r=await get("/api/skill?name="+$("skill-pick").value);$("skill-text").value=r.text||""}
 async function saveSkill(){await post("/api/skill",{name:$("skill-pick").value,text:$("skill-text").value});toast("Saved")}

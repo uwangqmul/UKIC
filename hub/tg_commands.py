@@ -1,6 +1,8 @@
 """
 Telegram group commands: the bot reads the group in real time (long polling, started by server.py).
 
+  Order menu          /trade (or a bare /buy or /sell) opens a button menu: Buy/Sell, portfolio, stock, size,
+                      Submit (tg_menu.py). Nothing has to be typed.
   Trade commands      "/buy AAPL 100 shares in First Portfolio" / "sell NVDA all in First Portfolio" / "/buy TSLA $5000 in X"
                       (Chinese orders work too.) The bot repeats the parsed order and only submits after the same
                       person replies "yes".
@@ -32,6 +34,7 @@ import requests
 
 from common import (ASSETS_FILE, DATA, DECISIONS, NEWS_BOT, load_settings, log, now_utc, read_json, to_london,
                     write_json)
+import tg_menu
 from trader_bridge import NAME_RE, trade
 
 OFFSET_FILE = DATA / "tg_offset.json"
@@ -103,6 +106,9 @@ def help_text(bot):
 
 Call the bot by starting with @{bot}, replying to one of its messages, or using a / command.
 
+🧾 ORDER MENU (easiest)
+/trade opens a menu: tap Buy or Sell, the portfolio, the stock (⭐ = latest Jev BUY picks) and the amount, then ✅ Submit. A bare /buy or /sell opens it too.
+
 🟢 BUY
 /buy AAPL $5000 in {pf}
 /buy NVDA 10 shares in {pf}
@@ -127,6 +133,7 @@ Only whitelisted members can trade. If you are not on the list, the bot replies 
 
 
 COMMANDS = [
+    {"command": "trade", "description": "Order menu: tap Buy/Sell, portfolio, stock and amount"},
     {"command": "buy", "description": "Buy: /buy AAPL $5000 in First Portfolio"},
     {"command": "sell", "description": "Sell: /sell TSLA 5 shares in First Portfolio (or all)"},
     {"command": "ask", "description": "Ask for analysis: /ask outlook for NVDA"},
@@ -404,6 +411,28 @@ def _log_order(row):
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def handle_callback(cq, e):
+    """A button press on an order menu."""
+    token = e["TELEGRAM_BOT_TOKEN"]
+    chat = (cq.get("message") or {}).get("chat", {})
+    uid = str(cq.get("from", {}).get("id", ""))
+    if chat.get("type") != "private" and str(chat.get("id")) != e.get("TELEGRAM_CHAT_ID", ""):
+        return
+    if uid not in allowed_users(e):
+        api(token, "answerCallbackQuery", callback_query_id=cq["id"], text="You are not on the allowed list.")
+        return
+
+    def submit(order, flow):
+        why = problem(order)
+        if why:
+            return why
+        threading.Thread(target=_run_order, args=(token, flow["chat_id"], flow["msg_id"], flow["who"], order),
+                         daemon=True).start()
+        return ""
+
+    tg_menu.on_callback(api, token, cq, submit)
+
+
 def _run_order(token, chat_id, msg_id, who, order):
     with _trade_lock:  # one browser order at a time
         say(token, chat_id, f"⏳ Placing order: {describe(order)}", msg_id)
@@ -434,6 +463,9 @@ def handle(msg, e, me):
     if not private and str(chat_id) != e.get("TELEGRAM_CHAT_ID", ""):
         return  # only the club group
 
+    if tg_menu.on_text(api, token, chat_id, uid, text):
+        return  # a typed ticker, amount or number of shares for an open order menu
+
     bot_name = me.get("username", "")
     mentioned = bool(bot_name) and f"@{bot_name}".lower() in text.lower()
     replied = (msg.get("reply_to_message") or {}).get("from", {}).get("id") == me.get("id")
@@ -458,6 +490,8 @@ def handle(msg, e, me):
     looks_like_order = (bool(TRADE_WORD.search(clean)) and bool(SIZE_HINT.search(clean))) or \
         bool(re.match(r"^/(buy|sell)\b", clean, re.I))
     addressed = private or mentioned or replied or asked
+    if re.fullmatch(r"/?trade", clean.strip(), re.I) and clean.startswith("/"):
+        looks_like_order = True  # /trade: handled with the order menu below
     if re.match(r"^/(help|start)\b", clean, re.I) or (mentioned and re.fullmatch(r"(help|帮助|模板|template)?", clean, re.I)):
         return say(token, chat_id, help_text(bot_name), msg_id)
     if addressed and TRADE_WORD.search(clean) and not asked:
@@ -472,6 +506,13 @@ def handle(msg, e, me):
                                 "to add it to TELEGRAM_ALLOWED_USERS in news_bot\\.env, then try again.", msg_id)
         return
     _state["last_message"] = to_london(now_utc()).strftime("%Y-%m-%d %H:%M")
+
+    bare = re.fullmatch(r"/?(trade|buy|sell|交易|买|卖)", clean.strip(), re.I)
+    if bare and (clean.startswith("/") or addressed):
+        word = bare.group(1).lower()
+        action = "BUY" if word in ("buy", "买") else "SELL" if word in ("sell", "卖") else ""
+        tg_menu.open_menu(api, token, chat_id, uid, who, action, msg_id)
+        return
 
     if looks_like_order:
         order = parse_order(clean, e)
@@ -519,16 +560,18 @@ def loop():
                 me, me_token = api(token, "getMe"), token
                 set_menu(token)
                 _state["bot"] = me.get("username", "")
-            updates = api(token, "getUpdates", offset=offset, timeout=30, allowed_updates=["message"])
+            updates = api(token, "getUpdates", offset=offset, timeout=30, allowed_updates=["message", "callback_query"])
             _state.update(running=True, error="")
             for u in updates:
                 offset = u["update_id"] + 1
                 write_json(OFFSET_FILE, {"offset": offset})
-                if u.get("message"):
-                    try:
+                try:
+                    if u.get("message"):
                         handle(u["message"], e, me)
-                    except Exception:
-                        log.exception("Telegram command failed")
+                    elif u.get("callback_query"):
+                        handle_callback(u["callback_query"], e)
+                except Exception:
+                    log.exception("Telegram command failed")
             for k in [k for k, o in _pending.items() if time.time() - o["at"] > CONFIRM_MINUTES * 60]:
                 _pending.pop(k, None)
         except Exception as ex:
