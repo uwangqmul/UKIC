@@ -57,6 +57,12 @@ def trade(action, company, portfolio="", shares="", amount="", submit=False, hea
         with _one_at_a_time:
             p = subprocess.run(args, cwd=TRADER, capture_output=True, text=True, encoding="utf-8",
                                errors="replace", timeout=240, env=env)
+    except subprocess.TimeoutExpired as e:
+        # The order may already have been sent when the time ran out: never report it as "not submitted"
+        out = "\n".join(x if isinstance(x, str) else (x or b"").decode("utf-8", "replace") for x in (e.stdout, e.stderr))
+        log.warning("Trade timed out after 240 s (submit %s)", submit is True)
+        return {"ok": False, "submitted": "unknown" if submit is True else False,
+                "output": (out.strip() + "\nTimed out after 240 s. Check UMushroom before trying again.").strip()[-6000:]}
     except Exception as e:
         return {"ok": False, "submitted": False, "output": str(e)}
     out = (p.stdout + "\n" + p.stderr).strip()

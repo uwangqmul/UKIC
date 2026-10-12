@@ -4,7 +4,8 @@ Stock news collector and notifier: collect -> filter -> de-duplicate -> Telegram
 Sources:
   - Google News search (per company: market news, product launches, contracts)
   - Yahoo Finance ticker news (US-listed stocks)
-  - Official company newsroom RSS feeds (product launches, announcements)
+  - Official company sources (config.json "official"): newsroom/IR RSS feeds, investor-site JSON press-release lists,
+    or a Google News search limited to the company's own news pages; a feed can have a fallback used only when it fails
   - US Department of Defense daily contract announcements
 
 Usage: python news.py
@@ -34,6 +35,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 }
+FEED_READER_UA = "Feedly/1.0"  # exactly this: some IR sites (e.g. investor.lilly.com) only answer feed readers
 ATOM = "{http://www.w3.org/2005/Atom}"
 TG_LIMIT = 3800  # Telegram's limit is 4096 characters per message; keep a margin
 
@@ -124,18 +126,53 @@ def title_key(title):
     return re.sub(r"\s+[-–|]\s+[^-–|]{2,40}$", "", title).lower().strip()
 
 
+def us_eastern_to_utc(naive):
+    """US Eastern wall-clock time -> UTC (EDT from the 2nd Sunday of March to the 1st Sunday of November, 2am)."""
+    y = naive.year
+    march = datetime(y, 3, 8 + (6 - datetime(y, 3, 8).weekday()) % 7, 2)
+    november = datetime(y, 11, 1 + (6 - datetime(y, 11, 1).weekday()) % 7, 2)
+    offset = 4 if march <= naive < november else 5
+    return (naive + timedelta(hours=offset)).replace(tzinfo=timezone.utc)
+
+
+def json_items(data, url):
+    """Investor-site press-release lists (".../feed/PressRelease.svc/GetPressReleaseList", used by Corning, P&G,
+    J&J, Netflix). Dates are US Eastern ("10/07/2026 08:08:00"); links are relative to the site."""
+    site = re.sub(r"^(https?://[^/]+).*", r"\1", url)
+    items = []
+    for r in data.get("GetPressReleaseListResult") or []:
+        try:
+            published = us_eastern_to_utc(datetime.strptime(r.get("PressReleaseDate", ""), "%m/%d/%Y %H:%M:%S"))
+        except ValueError:
+            published = None
+        link = r.get("LinkToDetailPage") or ""
+        items.append({
+            "title": clean(r.get("Headline")),
+            "link": urllib.parse.urljoin(site + "/", link) if link else "",
+            "guid": str(r.get("PressReleaseId") or ""),
+            "source": re.sub(r"^https?://(www\.)?([^/]+).*", r"\2", url),
+            "published": published,
+            "text": clean(r.get("ShortBody") or r.get("ShortDescription") or ""),
+        })
+    return [i for i in items if i["title"] and i["link"]]
+
+
 # ---------- Collection ----------
-def fetch_feed(url, retries=2):
+def fetch_source(url, kind="rss", ua=None, retries=2):
+    """Returns (ok, items). ok is False when the source could not be read (blocked, offline, not a feed)."""
+    headers = {**HEADERS, "User-Agent": FEED_READER_UA} if ua == "feedreader" else HEADERS
     for attempt in range(1, retries + 1):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=20)
+            r = requests.get(url, headers=headers, timeout=20)
             r.raise_for_status()
+            if kind == "json":
+                return True, json_items(r.json(), url)
             root = ET.fromstring(r.content)
             break
         except Exception as e:
             if attempt == retries:
                 log.warning("Source unavailable: %s (%s)", url[:90], str(e)[:120])
-                return []
+                return False, []
             time.sleep(2)
 
     default_source = re.sub(r"^https?://(www\.)?([^/]+).*", r"\2", url)
@@ -164,7 +201,11 @@ def fetch_feed(url, retries=2):
             "published": parse_date(e.findtext(f"{ATOM}published") or e.findtext(f"{ATOM}updated")),
             "text": clean(e.findtext(f"{ATOM}summary") or e.findtext(f"{ATOM}content")),
         })
-    return [i for i in items if i["title"] and i["link"]]
+    return True, [i for i in items if i["title"] and i["link"]]
+
+
+def fetch_feed(url, retries=2):
+    return fetch_source(url, retries=retries)[1]
 
 
 def google_url(query):
@@ -172,16 +213,39 @@ def google_url(query):
         {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"})
 
 
+def source_spec(entry):
+    """An "official" entry -> {url, type, ua, fallback}. An entry is a feed URL, or an object with "url" (and optional
+    "type": "rss"/"json", "ua": "feedreader") or "search" (a Google News search, e.g. "site:rtx.com/news"), and an
+    optional "fallback" entry that is read only when the main source fails."""
+    if isinstance(entry, str):
+        entry = {"url": entry}
+    if entry.get("search"):
+        spec = {"url": google_url(entry["search"] + " when:3d"), "type": "rss", "ua": None}
+    else:
+        spec = {"url": entry["url"], "type": entry.get("type", "rss"), "ua": entry.get("ua")}
+    spec["fallback"] = source_spec(entry["fallback"]) if entry.get("fallback") else None
+    return spec
+
+
+def fetch_official(spec):
+    ok, items = fetch_source(spec["url"], spec["type"], spec["ua"])
+    if not ok and spec["fallback"]:
+        log.info("Using the fallback for %s", spec["url"][:90])
+        return fetch_official(spec["fallback"])
+    return items
+
+
 def build_jobs():
-    """Return [(url, kind, symbols)]; symbols=None means match every company by keyword."""
+    """Return [(source, kind, symbols)]; source is a URL or an official-source spec; symbols=None means match every
+    company by keyword."""
     jobs = []
     yahoo_syms = []
     for s in CONFIG["stocks"]:
-        jobs.append((google_url(s["query"] + CONFIG["google_suffix"]), "news", [s["symbol"]]))
+        jobs.append((google_url(s["query"] + s.get("suffix", CONFIG["google_suffix"])), "news", [s["symbol"]]))
         if s.get("contracts"):
             jobs.append((google_url(s["query"] + CONFIG["contract_suffix"]), "contract", [s["symbol"]]))
-        for url in s.get("official", []):
-            jobs.append((url, "official", [s["symbol"]]))
+        for entry in s.get("official", []):
+            jobs.append((source_spec(entry), "official", [s["symbol"]]))
         if s.get("yahoo", True):
             yahoo_syms.append(s["symbol"])
     for i in range(0, len(yahoo_syms), 10):
@@ -201,7 +265,7 @@ def collect():
     jobs = build_jobs()
 
     with ThreadPoolExecutor(max_workers=6) as pool:
-        results = list(pool.map(lambda j: fetch_feed(j[0]), jobs))
+        results = list(pool.map(lambda j: fetch_official(j[0]) if isinstance(j[0], dict) else fetch_feed(j[0]), jobs))
 
     found = {sym: {} for sym in stocks}
     for (url, kind, syms), items in zip(jobs, results):
