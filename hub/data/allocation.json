@@ -1,0 +1,14 @@
+{
+  "about": "Base weights in % of the portfolio: the opening allocation of 12 Oct 2026 (trader/docs/AGENT_GUIDE.md section 3). The sector tilt keeps each group's total and only changes the split inside it. SanDisk (SNDK) is watch-only and not listed.",
+  "groups": {
+    "Chips": {"NVDA": 6, "AVGO": 4, "TSM": 4, "AMD": 3, "INTC": 3},
+    "Memory & equipment": {"MU": 4, "SKHY": 3, "ASML": 3},
+    "Optical & networking": {"LITE": 2, "GLW": 2, "CSCO": 2},
+    "Servers": {"DELL": 2, "HPE": 2},
+    "Software & cloud": {"MSFT": 4, "ORCL": 2, "PLTR": 2, "NET": 1.5, "CRWD": 1.5, "IBM": 1},
+    "Platforms": {"GOOGL": 3.5, "AMZN": 3.5, "AAPL": 3.5, "META": 3.5},
+    "Mobility & space": {"TSLA": 2, "UBER": 1.5, "SPCX": 1.5},
+    "Defense": {"RTX": 3, "LMT": 2, "NOC": 2, "GD": 2},
+    "Hedges": {"GOLD": 4, "DTLA": 3, "WMT": 2, "PG": 2, "JNJ": 2, "LLY": 2, "JPM": 2, "XOM": 2, "NFLX": 1}
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "about": "Competition rules checked before every submit in the portfolios listed below (see docs/AGENT_GUIDE.md section 3). Previews show the check; a submit that breaks a rule is refused. Portfolio names must match UMushroom exactly (case does not matter).",
+  "portfolios": [],
+  "maxAssetPct": 6,
+  "maxGroupPct": 20,
+  "minHedgePct": 15,
+  "hedgeGroup": "Hedges",
+  "noBorrow": true,
+  "journalMaxAgeHours": 24,
+  "aliases": {
+    "IE00BFM6TC58": ["ishares $ treasury"],
+    "FR0013416716": ["amundi physical gold"]
+  }
+}

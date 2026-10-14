@@ -1,0 +1,4 @@
+requests>=2.31
+python-dotenv>=1.0
+typesafe-sdk>=0.7
+anthropic>=1.0

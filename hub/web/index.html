@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UKIC Hub</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--text:#1d2129;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;--up:#16a34a;--down:#dc2626;--warn:#b45309;--chip:#eef2ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--panel:#181b21;--text:#e5e7eb;--muted:#9ca3af;--line:#2a2f38;--accent:#60a5fa;--up:#4ade80;--down:#f87171;--warn:#fbbf24;--chip:#1e293b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:2}
+header h1{font-size:17px;margin:0}
+.clock{font-variant-numeric:tabular-nums;color:var(--muted)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--chip)}
+.on{color:var(--up)}.off{color:var(--muted)}
+.layout{display:flex;min-height:calc(100vh - 56px)}
+nav{width:170px;flex:none;border-right:1px solid var(--line);padding:10px 0;background:var(--panel)}
+nav button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--text);padding:9px 18px;font:inherit;cursor:pointer}
+nav button.active{background:var(--chip);color:var(--accent);font-weight:600}
+main{flex:1;padding:20px;max-width:1200px;min-width:0}
+section{display:none}section.active{display:block}
+h2{font-size:16px;margin:0 0 12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.kv{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.kv:last-child{border:0}
+.muted{color:var(--muted)}.warn{color:var(--warn)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12px}
+.BUY{color:var(--up);font-weight:700}.SELL{color:var(--down);font-weight:700}.HOLD{color:var(--muted)}
+button.btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer;font:inherit}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{background:var(--down);border-color:var(--down);color:#fff}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.w-notes{min-height:54px;font-family:inherit;font-size:13px;resize:vertical}
+textarea{width:100%;min-height:420px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+label.row{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap}
+label.row>span:first-child{width:220px;color:var(--muted)}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:480px;overflow:auto;font-size:12px}
+a{color:var(--accent)}
+.nowrap{white-space:nowrap}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;display:flex;min-width:90px}
+.bar i{display:block;height:100%}
+iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;background:#fff}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--text);color:var(--bg);padding:10px 14px;border-radius:8px;display:none;max-width:420px}
+@media (max-width:760px){.layout{flex-direction:column}nav{width:auto;display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}nav button{white-space:nowrap;width:auto}main{padding:12px 16px}label.row>span:first-child{width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍄 UKIC Hub</h1>
+  <span class="clock" id="clock">…</span>
+  <span id="mkt"></span>
+  <span class="warn" id="dst"></span>
+  <span id="stale" style="display:none" class="warn">⚠ The hub's code changed after it started (<span id="stale-at"></span>): restart to use it.
+    <button class="btn primary" onclick="restartHub()">Restart hub</button></span>
+</header>
+<div class="layout">
+<nav id="nav"></nav>
+<main>
+
+<section id="overview">
+  <h2>Overview</h2>
+  <div class="grid">
+    <div class="card"><b>Time</b><div id="ov-time"></div></div>
+    <div class="card"><b>Component status</b><div id="ov-health"></div></div>
+    <div class="card"><b>Reasoning</b><div id="ov-run"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" onclick="runNow('manual')">Run reasoning now</button>
+        <button class="btn" onclick="runNow('night')">Collect news only</button>
+      </div></div>
+  </div>
+  <div class="card"><b>Quick launch</b>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="launch('news_bot')">Start news bot</button>
+      <button class="btn" onclick="launch('umushroom')">Open UMushroom and portfolio journal</button>
+      <button class="btn" onclick="launch('news_dashboard')">Open news and chart dashboard</button>
+      <button class="btn" onclick="post('/api/test_telegram',{}).then(r=>toast(r.ok?'Test message sent to Telegram':'Telegram send failed, see the log'))">Test Telegram</button>
+    </div></div>
+  <div class="card"><b>Coming up</b><table id="ov-next"></table></div>
+</section>
+
+<section id="watch">
+  <h2>Watchlist</h2>
+  <div class="card">
+    <label class="row" style="margin-top:0"><span>Search rows</span><input id="w-q" placeholder="Ticker, name, sector or text in notes" oninput="renderWatch()" style="flex:1;min-width:200px">
+      <select id="w-f" onchange="renderWatch()"><option value="">All</option><option value="notes">Has notes</option><option value="news">News in last 24h</option><option value="act">Has buy/sell suggestion</option></select></label>
+    <div class="muted" id="w-meta"></div>
+    <table id="w-table"></table></div>
+  <div class="card"><b>Bulk paste</b>
+    <div class="muted">One entry per line: ticker or name first, then the note, e.g. <code>NVDA earnings 11/19, watch data centre revenue</code> or <code>Apple	product launch</code> (tab-separated rows copied from a spreadsheet work too). Each note is appended to that row's notes.</div>
+    <textarea id="w-bulk" style="min-height:120px;margin-top:8px"></textarea>
+    <button class="btn primary" onclick="bulkPaste()">Append to matching rows</button> <span class="muted" id="w-bulk-out"></span></div>
+</section>
+
+<section id="schedule">
+  <h2>Schedule (London time, daylight saving handled automatically)</h2>
+  <div class="card" id="sched-form"></div>
+  <div class="card muted">
+    The UK returns to winter time on 25 October and the US on 1 November. During that week US stocks trade 13:30–20:00 London time; the dashboard adjusts automatically and shows a notice at the top.
+    US market holidays are not skipped automatically; on a holiday you can turn off "Scheduled reasoning" for the day.
+  </div>
+</section>
+
+<section id="assets">
+  <h2>Assets and sectors</h2>
+  <div class="card"><div class="muted" style="margin-bottom:8px">Only assets ticked "Trade" go into reasoning. The stock list itself is edited in news_bot/config.json.</div>
+    <table id="asset-table"></table>
+    <div style="margin-top:10px"><button class="btn primary" onclick="saveAssets()">Save</button></div></div>
+  <div class="card"><b>Event timing rules</b><div class="muted">A headline or summary containing these words is classified accordingly. If neither matches, it counts as "in 12–24 hours". Separate with commas.</div>
+    <label class="row"><span>Immediate impact (within hours)</span><textarea id="rule-immediate" style="min-height:70px"></textarea></label>
+    <label class="row"><span>Shows up in 12–24 hours</span><textarea id="rule-delayed" style="min-height:70px"></textarea></label>
+    <button class="btn primary" onclick="saveAssets()">Save</button></div>
+</section>
+
+<section id="news">
+  <h2>News and Jev verdicts (by asset and sector)</h2>
+  <div class="card">
+    <label class="row" style="margin-top:0"><span>Sector / asset</span>
+      <select id="news-sector" onchange="$('news-asset').value='';renderNews()"></select>
+      <select id="news-asset" onchange="renderNews()"></select>
+      <label><input type="checkbox" id="news-trade" onchange="renderNews()"> Traded assets only</label></label>
+    <label class="row"><span>Period / timing / keyword</span><select id="news-hours" onchange="loadNews()"><option value="24">24 hours</option><option value="48" selected>48 hours</option><option value="72">72 hours</option></select>
+      <select id="news-hz" onchange="renderNews()"><option value="">All timings</option><option value="immediate">Immediate (within hours)</option><option value="delayed">In 12–24 hours</option></select>
+      <input id="news-filter" placeholder="Headline keyword" oninput="renderNews()"></label>
+    <div id="news-sum"></div></div>
+  <div id="news-groups"></div>
+</section>
+
+<section id="decisions">
+  <h2>Trade suggestions</h2>
+  <div class="card"><select id="dec-pick" onchange="renderDecision()"></select> <span id="dec-meta" class="muted"></span>
+    <button class="btn" style="float:right" onclick="showBrief()">View news brief</button></div>
+  <div class="card"><table id="dec-table"></table></div>
+  <div class="card" id="brief-box" style="display:none"><pre id="brief-text"></pre></div>
+</section>
+
+<section id="tilt">
+  <h2>Sector tilt (Jev picks inside each group)</h2>
+  <div class="card">
+    <div class="muted" style="margin-bottom:8px">Each group keeps its total weight from the opening allocation (hub/data/allocation.json). Inside the group, part of the other assets' weight moves to the asset with the best Jev score in the latest reasoning run (average over "next hours" and "12-24h" of rise minus fall). Above the cap, the extra goes to the next best asset. A group where nothing is likely to rise keeps its base weights. This only computes targets: nothing is ordered here.</div>
+    <label class="row"><span>Share moved to the top pick</span><input id="t-share" type="number" min="0" max="100" step="5" style="width:90px" oninput="loadTilt()"> % <span class="muted">0 = opening allocation, 100 = everything to the top pick</span></label>
+    <label class="row"><span>Cap per asset</span><input id="t-cap" type="number" min="0" max="100" step="0.5" style="width:90px" oninput="loadTilt()"> % <span class="muted">6 = the competition rule; 0 = no cap</span></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="saveTilt()">Save as default</button>
+      <button class="btn primary" onclick="tiltToBatch()">Send targets to batch orders</button>
+    </div>
+    <div id="t-meta" class="muted" style="margin-top:8px"></div></div>
+  <div class="card"><b>Rebalance a portfolio to these targets</b>
+    <div class="muted" style="margin:6px 0">Compares the portfolio's holdings (from its latest read-only snapshot) with the targets above: sells what is
+      above its target first, then buys what is below, by weight. Changes smaller than the "Ignore changes smaller than" setting of the automatic orders are skipped.</div>
+    <label class="row"><span>Portfolio</span><input id="r-portfolio" list="pf-list" style="width:260px">
+      <button class="btn" onclick="refreshHoldings()">Refresh holdings (read-only)</button>
+      <button class="btn primary" onclick="loadPlan()">Show plan</button></label>
+    <div id="r-meta" class="muted"></div>
+    <table id="r-table"></table>
+    <div style="margin-top:8px"><button class="btn primary" onclick="planToBatch()">Send plan to batch orders</button></div></div>
+  <div id="t-groups"></div>
+</section>
+
+<section id="orders">
+  <datalist id="pf-list"></datalist>
+  <h2>Orders</h2>
+  <div class="muted" style="margin:-6px 0 12px">Three ways to trade, from one stock to fully automatic. Every order is checked by the trader before it is
+    submitted (exact stock, available shares, and the competition rules for portfolios listed in trader/competition.json).</div>
+  <div class="card"><b>1. Single order</b>
+    <label class="row"><span>Buy / sell</span><select id="o-action" onchange="orderUnits()"><option value="buy">Buy</option><option value="sell">Sell</option></select></label>
+    <label class="row"><span>Stock (ticker recommended)</span><input id="o-company" placeholder="AAPL"></label>
+    <label class="row"><span>Portfolio</span><input id="o-portfolio" list="pf-list" style="width:260px"></label>
+    <label class="row"><span>Size</span><input id="o-size" placeholder="3" style="width:120px">
+      <select id="o-unit" onchange="orderUnits()"><option value="weight">% of the portfolio (buy)</option><option value="amount">amount (form currency)</option><option value="shares">shares</option></select>
+      <span class="muted" id="o-hint"></span></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" onclick="trade(false)">Preview (no order)</button>
+      <button class="btn danger" onclick="trade(true)">Confirm and submit order</button>
+    </div>
+    <p class="muted">Preview opens Chrome and fills in the form without submitting. When it looks right, click "Confirm and submit order". Close any Chrome window the project opened last time before ordering.</p>
+    <pre id="o-out">Nothing yet</pre></div>
+  <div class="card" id="batch-card"><b>2. Batch orders (a list, a CSV, or a rebalance plan from Sector tilt)</b>
+    <div class="muted" style="margin:6px 0">Load a CSV such as <code>jevsimu_orders.csv</code> (it needs an "Order with" or "Ticker" column and a "Weight %", "Or buy amount" or "Buy shares" column), or paste one order per line: <code>AAPL, 3.5%</code>, <code>AAPL, $4633.45</code>, <code>AAPL, 13.7133 shares</code> or <code>sell AAPL, all</code>. Sells in the list run before the buys that follow them. With "Weight % × total amount", each order is its weight times the total you enter. The orders run one after another in the portfolio below. "Preview all" fills in each form without submitting.</div>
+    <label class="row"><span>Portfolio</span><input id="b-portfolio" list="pf-list" placeholder="JEVsimu" style="width:260px"></label>
+    <label class="row"><span>Buy by</span><select id="b-by" onchange="batchParse()"><option value="direct">Weight % (UMushroom works out the amount)</option><option value="weight">Weight % × total amount</option><option value="amount">Amount</option><option value="shares">Shares</option></select></label>
+    <label class="row" id="b-total-row"><span>Total to invest</span><select id="b-cur" onchange="batchParse()"><option value="USD">USD $</option><option value="GBP">GBP £</option><option value="EUR">EUR €</option></select> <input id="b-total" type="number" min="0" step="100" placeholder="e.g. 100000" style="width:160px" oninput="batchParse()"> <span class="muted">each order = weight % × this total. Use the currency of UMushroom's amount box for this portfolio (preview one order to see it): the number is typed as is.</span></label>
+    <label class="row"><span>CSV file</span><input type="file" accept=".csv,text/csv" onchange="batchFile(this)"></label>
+    <textarea id="b-text" style="min-height:120px" placeholder="Paste the CSV or one order per line" oninput="batchParse()"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn primary" onclick="batchRun(false)">Preview all (no orders)</button>
+      <button class="btn danger" onclick="batchRun(true)">Submit all orders</button>
+      <button class="btn" onclick="post('/api/batch/stop',{}).then(renderBatch)">Stop</button>
+    </div>
+    <div id="b-meta" class="muted" style="margin-top:8px"></div>
+    <table id="b-table"></table></div>
+  <div class="card" id="auto-card"><b>3. Automatic orders</b> <span id="auto-mode" class="pill"></span>
+    <div class="muted" style="margin:6px 0">After each ticked reasoning run, the hub trades by itself with the strategy below.
+      <b>Dry run</b> submits real orders but only in the practice portfolio; <b>Live</b> trades the competition portfolio and can only be switched on
+      after a dry run went through in the last 7 days (you also type LIVE). Strategies:
+      <b>Jev signals</b> buys each strong BUY suggestion (a fixed % of the portfolio) and sells strong SELLs;
+      <b>Sector tilt rebalance</b> reads the portfolio's holdings, then sells what is above the Sector tilt targets and buys what is below (sells first, by weight).</div>
+    <div id="auto-gate" style="margin:6px 0"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+      <button class="btn" onclick="autoMode('off')">Off</button>
+      <button class="btn" onclick="sectorPreview('dry_run')" title="Real orders, but only in the practice portfolio">Dry run: real orders in the practice portfolio</button>
+      <button class="btn danger" onclick="sectorPreview('live')" title="Real orders in the competition portfolio">Live: real orders in the competition portfolio</button>
+    </div>
+    <div id="auto-form"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+      <button class="btn primary" onclick="saveAuto()">Save limits</button>
+      <button class="btn" onclick="previewRound()" title="What the next automatic run would sell and buy with the latest Jev result; nothing is ordered">Preview next round (no orders)</button>
+      <span class="muted">Ticker for dry run</span><input id="auto-test-sym" value="AAPL" style="width:90px" title="The dry run buys this stock in the practice portfolio (it is submitted)"> <button class="btn" onclick="autoTest()">Dry run once</button>
+      <button class="btn primary" id="auto-now" onclick="sectorPreview('now')" title="No need to wait for scheduled reasoning: picks stocks from the latest suggestion like live mode and submits in the practice portfolio">Dry run a round now (latest suggestion)</button>
+    </div>
+    <pre id="auto-out" style="display:none"></pre>
+    <b style="display:block;margin-top:12px">Automatic order log</b>
+    <table id="auto-ledger"></table>
+  </div>
+</section>
+
+<section id="journal">
+  <h2>Portfolio journal</h2>
+  <div class="card muted">The trader's journal page (http://127.0.0.1:6420/). Click "Open UMushroom and portfolio journal" on the Overview tab first. <a href="http://127.0.0.1:6420/" target="_blank">Open in new window</a></div>
+  <iframe id="journal-frame" loading="lazy"></iframe>
+</section>
+
+<section id="skill">
+  <h2>Skill and scheduled-session prompt</h2>
+  <div class="card"><select id="skill-pick" onchange="loadSkill()"><option value="skill">SKILL.md (Nick's five-point structure)</option><option value="prompt">Scheduled-session prompt</option></select>
+    <button class="btn primary" onclick="saveSkill()">Save</button>
+    <textarea id="skill-text" style="margin-top:10px"></textarea></div>
+</section>
+
+<section id="logs">
+  <h2>Run log</h2>
+  <div class="card"><button class="btn" onclick="loadLog()">Refresh</button><pre id="log-text"></pre></div>
+</section>
+
+</main>
+</div>
+<div class="toast" id="toast"></div>
+<div id="sp-wrap" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;overflow:auto">
+  <div class="card" style="max-width:1000px;margin:30px auto">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:1;background:var(--panel);padding:8px 0;border-bottom:1px solid var(--line)">
+      <button class="btn primary" id="sp-ok">Confirm</button>
+      <button class="btn" onclick="spRefresh()">Refresh holdings first (read-only)</button>
+      <button class="btn" onclick="spClose()">Cancel (nothing changes)</button>
+    </div>
+    <h2 id="sp-title" style="margin-top:10px">Before you switch it on</h2>
+    <div id="sp-meta" class="muted"></div>
+    <div id="sp-body"></div>
+  </div>
+</div>
+
+<script>
+const TABS=[["overview","Overview"],["watch","Watchlist"],["schedule","Schedule"],["assets","Assets & sectors"],["news","News & Jev"],["decisions","Trade suggestions"],["tilt","Sector tilt"],["orders","Orders"],["journal","Portfolio journal"],["skill","Skill / prompt"],["logs","Log"]];
+const KIND={morning:"Morning reasoning",intraday:"Intraday reasoning",night:"Overnight collection",manual:"Manual",reminder_eu:"EU open reminder",reminder_us:"US open reminder"};
+let S=null,NEWS=[],DECS=[],ASSETS=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct=x=>x==null?"":(x*100).toFixed(0)+"%";
+function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(e._t);e._t=setTimeout(()=>e.style.display="none",4000)}
+async function get(u){const r=await fetch(u);return r.json()}
+async function post(u,b){const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","X-Hub":"1"},body:JSON.stringify(b)});return r.json()}
+
+function nav(){$("nav").innerHTML=TABS.map(([id,t])=>`<button data-id="${id}">${t}</button>`).join("");
+  $("nav").onclick=e=>{const id=e.target.dataset.id;if(id)show(id)};
+  show(localStorage.getItem("tab")||"overview")}
+function show(id){try{localStorage.setItem("tab",id)}catch(e){}
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.id===id));
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("active",s.id===id));
+  ({orders:()=>{loadAuto();renderBatch()},watch:loadWatch,news:loadNews,decisions:loadDecisions,tilt:()=>{if(S&&$("t-share").value==="")$("t-share").value=Math.round((S.settings.tilt_share??0.5)*100);if(S&&$("t-cap").value==="")$("t-cap").value=S.settings.tilt_cap_pct??6;loadTilt()},assets:loadAssets,skill:loadSkill,logs:loadLog,schedule:renderSchedule,
+    journal:()=>{if(!$("journal-frame").src)$("journal-frame").src="http://127.0.0.1:6420/"}}[id]||(()=>{}))()}
+
+async function restartHub(){const r=await post("/api/restart",{}).catch(()=>({error:"not found"}));
+  if(r.error==="not found"){toast("This hub is too old to restart itself: close its window and double-click start_hub.bat");return}
+  if(!r.ok){toast(r.error);return}toast("Restarting… the page reloads in a few seconds");setTimeout(()=>location.reload(),6000)}
+async function refresh(){S=await get("/api/status");const c=S.clock,h=S.health,r=S.run;
+  $("stale").style.display=S.server?.code_changed||!S.server?"":"none";$("stale-at").textContent=S.server?"started "+S.server.started:"old version";
+  $("clock").textContent=`London ${c.london.slice(11,16)} ${c.london_tz} · New York ${c.new_york}`;
+  $("mkt").innerHTML=`<span class="pill ${c.eu_open_now?"on":"off"}">EU ${c.eu_open_now?"open":"closed"}</span> <span class="pill ${c.us_open_now?"on":"off"}">US ${c.us_open_now?"open":"closed"}</span> <span class="pill">Window ${c.window}</span>`;
+  $("dst").textContent=c.dst_note?("⚠ This week the UK–US time gap is not 5 hours; US stocks trade "+c.us_open+"–"+c.us_close+" London time"):"";
+  $("ov-time").innerHTML=kv([["London",c.london+" "+c.london_tz],["New York",c.new_york],["US market (London time)",c.us_open+"–"+c.us_close],["Reasoning window",c.window+(c.in_window?" · active":"")],["Mode",S.settings.market_mode==="eu_us"?"EU + US":"US only"]]);
+  const ok=b=>b?'<span class="on">●</span> OK':'<span class="off">○</span> Not ready';
+  // Telegram: a filled-in key is not enough, show whether the last send actually worked
+  const tg=h=>{const l=h.telegram_last;if(!h.telegram)return ok(false);if(!l)return '<span class="off">●</span> Set, not tested';
+    return l.ok?`<span class="on">●</span> OK <span class="muted">${esc(l.at)}</span>`:`<span class="SELL" title="${esc(l.error)}">●</span> Send failed <span class="muted">${esc(l.at)}</span>`};
+  const tgc=c=>!c?ok(false):c.running?`<span class="on">●</span> Listening @${esc(c.bot)} · ${c.allowed_users} allowed · Model ${(c.providers||[]).length?c.providers.map(x=>x==="qwen"?"Qwen":"Claude").join(" → "):"<span class='warn'>not set</span>"}`+(c.allowed_users?"":" · <span class='warn'>add TELEGRAM_ALLOWED_USERS to .env</span>"):`<span class="off">●</span> Not running <span class="muted">${esc(c.error)}</span>`;
+  $("ov-health").innerHTML=kv([["trader folder",ok(h.trader_folder)],["news_bot folder",ok(h.news_bot_folder)],["News bot running",ok(h.news_bot_running)],["Portfolio journal page",ok(h.journal_running)],["UMushroom login",ok(h.umushroom_login)],["Telegram",tg(h)],["Telegram group commands",tgc(h.tg_commands)],["Jev key",ok(h.jev)]]);
+  $("ov-run").innerHTML=kv([["Scheduled reasoning",S.settings.scheduler_enabled?"On":"Off"],["Running now",r.running?(KIND[r.running.kind]+" since "+r.running.since):"None"],["Last run",r.last?(KIND[r.last.kind]+" "+r.last.at):"None yet"]])+(r.last_error?`<pre>${esc(r.last_error)}</pre>`:"");
+  $("ov-next").innerHTML="<tr><th>Time</th><th>What</th></tr>"+S.upcoming.map(u=>`<tr><td>${u.time}</td><td>${KIND[u.kind]||u.kind}</td></tr>`).join("")}
+const kv=rows=>rows.map(([k,v])=>`<div class="kv"><span class="muted">${k}</span><span>${v}</span></div>`).join("");
+
+function renderSchedule(){if(!S)return;const s=S.settings;
+  const f=[["scheduler_enabled","Scheduled reasoning","bool"],["market_mode","Market mode","sel",[["eu_us","EU + US (09:00 until 30 min before US close)"],["us","US only (US open to close)"]]],["eu_start","EU mode start time","time"],["eu_us_end_before_us_close_min","EU mode ends this many minutes before US close","num"],["interval_min","Intraday interval","sel",[[30,"30 minutes"],[60,"60 minutes"]]],["weekdays_only","Weekdays only","bool"],["morning_run","Morning reasoning time","time"],["night_runs","Overnight news collection only (comma-separated)","list"],["telegram_morning","Send morning result to Telegram","bool"],["telegram_intraday","Send intraday results to Telegram","sel",[["actionable","Only with buy/sell suggestions"],["all","Every time"],["off","Never"]]],["reminders","Reminder before market open","bool"],["reminder_before_min","Minutes before open to remind","num"],["lookback_hours","Hours of news read per run","num"],["buy_threshold","Buy threshold (probability of price rise)","prob"],["sell_threshold","Sell threshold (probability of price fall)","prob"],["min_margin","Minimum gap between rise and fall probability","prob"],["default_portfolio","Default portfolio","text"],["tg_default_amount_usd","Telegram: default amount for \"buy Apple\" (USD)","num"]];
+  $("sched-form").innerHTML=f.map(([k,l,t,o])=>{const v=s[k];let i;
+    if(t==="bool")i=`<input type="checkbox" data-k="${k}" data-t="bool" ${v?"checked":""}>`;
+    else if(t==="sel")i=`<select data-k="${k}" data-t="${typeof o[0][0]==="number"?"num":"text"}">${o.map(([a,b])=>`<option value="${a}" ${a==v?"selected":""}>${b}</option>`).join("")}</select>`;
+    else if(t==="list"||t==="names"||t==="nums")i=`<input data-k="${k}" data-t="${t}" value="${esc((v||[]).join(", "))}" style="width:${t==="list"?"auto":"420px"}">`;
+    else i=`<input data-k="${k}" data-t="${t}" value="${esc(v)}" ${t==="time"?'type="time"':""} style="width:140px">`;
+    return `<label class="row"><span>${l}</span>${i}</label>`}).join("")+`<button class="btn primary" onclick="saveSettings()">Save</button>`}
+async function saveSettings(){const b={};document.querySelectorAll("#sched-form [data-k]").forEach(e=>{const t=e.dataset.t;let v=e.value;
+  if(t==="bool")v=e.checked;else if(t==="num"||t==="prob")v=Number(v);else if(t==="list")v=v.split(",").map(x=>x.trim()).filter(x=>/^\d{1,2}:\d{2}$/.test(x));
+  else if(t==="names")v=v.split(",").map(x=>x.trim()).filter(Boolean);else if(t==="nums")v=v.split(",").map(x=>Number(x.trim())).filter(x=>x>0);b[e.dataset.k]=v});
+  await post("/api/settings",b);toast("Schedule saved");await refresh();renderSchedule()}
+
+async function loadAssets(){ASSETS=await get("/api/assets");
+  $("asset-table").innerHTML="<tr><th>Trade</th><th>Ticker</th><th>Name</th><th>Sector</th></tr>"+ASSETS.assets.map((a,i)=>`<tr><td><input type="checkbox" data-i="${i}" ${a.trade?"checked":""}></td><td>${esc(a.symbol)}</td><td>${esc(a.name)}</td><td><input data-s="${i}" value="${esc(a.sector)}"></td></tr>`).join("");
+  $("rule-immediate").value=(ASSETS.horizon_rules.immediate?.keywords||[]).join(", ");
+  $("rule-delayed").value=(ASSETS.horizon_rules.delayed?.keywords||[]).join(", ")}
+async function saveAssets(){const rows=ASSETS.assets.map((a,i)=>({symbol:a.symbol,trade:document.querySelector(`[data-i="${i}"]`).checked,sector:document.querySelector(`[data-s="${i}"]`).value}));
+  const sp=id=>$(id).value.split(",").map(x=>x.trim()).filter(Boolean);
+  ASSETS=await post("/api/assets",{assets:rows,horizon_rules:{immediate:{keywords:sp("rule-immediate")},delayed:{keywords:sp("rule-delayed")}}});toast("Saved")}
+
+let WATCH=[];
+async function loadWatch(){const r=await get("/api/watchlist");WATCH=r.rows;$("w-meta").textContent=r.decision?`Buy/sell suggestions from the ${r.decision} reasoning run`:"No reasoning results yet";renderWatch()}
+function renderWatch(){const q=$("w-q").value.trim().toLowerCase(),f=$("w-f").value;
+  const rows=WATCH.filter(w=>(!q||[w.symbol,w.name,w.sector,w.notes].join(" ").toLowerCase().includes(q))&&(!f||(f==="notes"&&w.notes)||(f==="news"&&w.news24)||(f==="act"&&w.action&&w.action!=="HOLD")));
+  $("w-table").innerHTML="<tr><th>Ticker</th><th>Name / sector</th><th>24h news</th><th>Suggestion</th><th style=\"width:55%\">Notes (saved when you click elsewhere)</th></tr>"+rows.map(w=>`<tr><td><b>${esc(w.symbol)}</b>${w.trade?"":'<div class="muted">Watch only</div>'}</td><td>${esc(w.name)}<div class="muted">${esc(w.sector)}</div></td><td>${w.news24||""}</td><td class="${w.action||""}">${w.action?w.action+(w.action!=="HOLD"?" "+pct(w.prob):""):""}</td><td><textarea class="w-notes" data-sym="${esc(w.symbol)}" onchange="saveWatch(this)">${esc(w.notes)}</textarea><div class="muted" style="font-size:12px">${w.updated?"Saved "+esc(w.updated):""}</div></td></tr>`).join("")||"<tr><td>No matching rows</td></tr>"}
+async function saveWatch(el){const sym=el.dataset.sym;const r=await post("/api/watchlist",{symbol:sym,notes:el.value});
+  if(r.ok){const w=WATCH.find(x=>x.symbol===sym);w.notes=el.value;w.updated=r.updated;el.nextElementSibling.textContent="Saved "+r.updated}else toast("Save failed: "+(r.error||""))}
+async function bulkPaste(){let done=0,miss=[],keep=[];const byKey=k=>{k=k.toLowerCase();return WATCH.find(w=>w.symbol.toLowerCase()===k||w.name.toLowerCase()===k)};
+  for(const line of $("w-bulk").value.split(/\r?\n/)){const t=line.trim();if(!t)continue;
+    let w=null,rest="";const parts=t.split("\t");
+    if(parts.length>1){w=byKey(parts[0].trim());rest=parts.slice(1).join(" ").trim()}
+    if(!w){const sorted=[...WATCH].sort((a,b)=>b.name.length-a.name.length);
+      for(const x of sorted){for(const k of [x.name,x.symbol]){if(t.toLowerCase().startsWith(k.toLowerCase())&&!/[A-Za-z0-9]/.test(t.charAt(k.length))){w=x;rest=t.slice(k.length).replace(/^[\s:：,，\-–]+/,"");break}}if(w)break}}
+    if(!w||!rest){miss.push(t.slice(0,30));keep.push(line);continue}
+    const notes=(w.notes?w.notes+"\n":"")+rest;const r=await post("/api/watchlist",{symbol:w.symbol,notes});
+    if(r.ok){w.notes=notes;w.updated=r.updated;done++}}
+  $("w-bulk-out").textContent=`Appended ${done} lines`+(miss.length?`; not recognised: ${miss.join(" / ")}`:"");$("w-bulk").value=keep.join("\n");renderWatch()}
+
+async function loadNews(){const [n,a]=await Promise.all([get("/api/news?hours="+$("news-hours").value),ASSETS?ASSETS:get("/api/assets")]);NEWS=n;ASSETS=a;
+  const secs=[...new Set(ASSETS.assets.map(x=>x.sector))];const cur=$("news-sector").value;
+  $("news-sector").innerHTML='<option value="">All sectors</option>'+secs.map(x=>`<option ${x===cur?"selected":""}>${esc(x)}</option>`).join("");renderNews()}
+function horizonOf(t){const low=t.toLowerCase(),R=ASSETS.horizon_rules||{};for(const k of ["immediate","delayed"])if((R[k]?.keywords||[]).some(w=>low.includes(w.toLowerCase())))return k;return "delayed"}
+function newsPick(sym){const a=ASSETS.assets.find(x=>x.symbol===sym);$("news-sector").value=a.sector;renderNews();$("news-asset").value=sym;renderNews()}
+function renderNews(){if(!ASSETS)return;const icon={up:"📈",down:"📉",neutral:"➖"};
+  const sec=$("news-sector").value,q=$("news-filter").value.trim().toLowerCase(),hz=$("news-hz").value,tr=$("news-trade").checked;
+  const assets=ASSETS.assets.filter(a=>(!sec||a.sector===sec)&&(!tr||a.trade));const curA=$("news-asset").value;
+  $("news-asset").innerHTML='<option value="">All assets</option>'+assets.map(a=>`<option value="${esc(a.symbol)}" ${a.symbol===curA?"selected":""}>${esc(a.symbol)} ${esc(a.name)}</option>`).join("");
+  const asel=$("news-asset").value;const shown=assets.filter(a=>!asel||a.symbol===asel);
+  const by={},seen=new Set();for(const n of NEWS){n.hz=n.hz||horizonOf(n.title);if((hz&&n.hz!==hz)||(q&&!n.title.toLowerCase().includes(q)))continue;const key=n.symbol+"|"+n.title.toLowerCase();if(seen.has(key))continue;seen.add(key);(by[n.symbol]=by[n.symbol]||[]).push(n)}
+  const stat=list=>{const up=list.filter(n=>n.jev_label==="up").length,dn=list.filter(n=>n.jev_label==="down").length;return `${list.length} items · 📈${up} 📉${dn}`};
+  const sectors=[...new Set(shown.map(a=>a.sector))];
+  $("news-sum").innerHTML=sectors.map(sc=>{const as=shown.filter(a=>a.sector===sc);const all=as.flatMap(a=>by[a.symbol]||[]);
+    return `<div class="kv"><span><b>${esc(sc)}</b> <span class="muted">${stat(all)}</span></span><span>${as.map(a=>`<button class="btn" style="padding:2px 8px;margin:2px" onclick="newsPick('${esc(a.symbol)}')">${esc(a.symbol)} ${(by[a.symbol]||[]).length}</button>`).join("")}</span></div>`}).join("");
+  $("news-groups").innerHTML=sectors.map(sc=>{const as=shown.filter(a=>a.sector===sc&&(by[a.symbol]||[]).length);if(!as.length)return "";
+    return `<div class="card"><h2 style="margin-bottom:6px">${esc(sc)}</h2>`+as.map(a=>`<div style="margin-top:10px"><b>${esc(a.symbol)}</b> ${esc(a.name)} ${a.trade?"":'<span class="pill">Watch only</span>'} <span class="muted">${stat(by[a.symbol])}</span>
+      <table>${by[a.symbol].map(n=>`<tr><td class="muted nowrap" style="width:110px">${esc((n.published||"").slice(5,16).replace("T"," "))}</td><td><a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a> <span class="pill">${esc(n.tag)}</span> <span class="pill">${n.hz==="immediate"?"Immediate":"12–24h"}</span></td><td class="nowrap" style="width:110px">${n.jev_label?icon[n.jev_label]+" "+pct(n.jev_prob)+(n.jev_impact>=1.34?" ❗":""):""}</td></tr>`).join("")}</table></div>`).join("")+"</div>"}).join("")||'<div class="card muted">No news in the selected range</div>'}
+
+async function loadDecisions(){DECS=await get("/api/decisions");
+  $("dec-pick").innerHTML=DECS.map((d,i)=>`<option value="${i}">${d.london} · ${KIND[d.kind]||d.kind}${d.engine==="claude"?" · Claude":""}</option>`).join("")||"<option>No reasoning results yet</option>";renderDecision()}
+function bar(p){return `<div class="bar" title="Rise ${pct(p.rise)} / flat ${pct(p.flat)} / fall ${pct(p.down)}"><i style="width:${p.rise*100}%;background:var(--up)"></i><i style="width:${p.flat*100}%;background:var(--line)"></i><i style="width:${p.down*100}%;background:var(--down)"></i></div>`}
+function renderDecision(){const d=DECS[$("dec-pick").value];if(!d){$("dec-table").innerHTML="";$("dec-meta").textContent="";return}
+  $("dec-meta").textContent=`Engine: ${d.engine==="jev"?"Jev":d.engine==="claude"?"Claude":"Article average (no Jev key)"} · Telegram: ${d.telegram?"sent":"not sent"}`+(d.auto?` · Automatic orders (${MODE[d.auto.mode]}): ${d.auto.done.length}`:"");
+  $("dec-table").innerHTML="<tr><th>Suggestion</th><th>Ticker</th><th>Probability</th><th>Timing</th><th>Next few hours</th><th>12–24 hours</th><th>Reasons</th><th></th></tr>"+d.rows.map(r=>`<tr><td class="${r.action}">${r.action}</td><td>${esc(r.symbol)}<div class="muted">${esc(r.sector)}</div></td><td>${r.action==='HOLD'?'':pct(r.prob)}</td><td style="white-space:nowrap">${r.horizon==="hours"?"Hours":r.horizon==="day"?"12–24h":""}</td><td>${bar(r.probs.hours)}</td><td>${bar(r.probs.day)}</td><td>${(r.why?`<div>${esc(r.why)}</div>`:"")+r.top.map(t=>`<div><a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(t.title)}</a> <span class="muted">${t.horizon==="immediate"?"Immediate":"Delayed"}</span></div>`).join("")}</td><td class="nowrap">${r.action!=="HOLD"?`<button class="btn" onclick="toOrder('${r.action}','${esc(r.symbol)}')">Go to order</button>`:""}</td></tr>`).join("")}
+async function showBrief(){const d=DECS[$("dec-pick").value];if(!d)return;const b=await get("/api/brief?id="+d.brief);$("brief-box").style.display="block";$("brief-text").textContent=b.text||"News brief not found"}
+function toOrder(a,sym){$("o-action").value=a==="BUY"?"buy":"sell";$("o-company").value=sym;$("o-portfolio").value=S.settings.default_portfolio;
+  $("o-unit").value=a==="SELL"?"shares":"weight";$("o-size").value=a==="SELL"?"all":(AUTO?.settings?.auto_weight_pct||3);orderUnits();show("orders")}
+function orderUnits(){const sell=$("o-action").value==="sell",u=$("o-unit");if(sell&&u.value==="weight")u.value="shares";
+  u.options[0].disabled=sell;$("o-hint").textContent=u.value==="weight"?"UMushroom works out the amount from the portfolio's value (e.g. 3 = 3%)":
+    u.value==="amount"?"typed into UMushroom's amount box as is: use the currency it shows":sell?"a number, or all":"a number of shares"}
+async function trade(submit){const unit=$("o-unit").value,size=$("o-size").value.trim();
+  const b={action:$("o-action").value,company:$("o-company").value.trim(),portfolio:$("o-portfolio").value.trim(),shares:"",amount:"",weight:"",submit};b[unit]=size.replace(/[%$,]/g,"");
+  if(!b.company||!b.portfolio||!size){toast("Fill in the stock, the portfolio and the size");return}
+  const label=unit==="weight"?size.replace(/%$/,"")+"% of the portfolio":unit==="amount"?size:size+" shares";
+  if(submit&&!confirm(`${b.action==="buy"?"Buy":"Sell"} ${b.company} (${label}) in "${b.portfolio}" and submit to UMushroom?`))return;
+  $("o-out").textContent=(submit?"Submitting…":"Previewing…")+" Chrome will open, please wait";const r=await post("/api/trade",b);$("o-out").textContent=(r.ok?"✅ ":"❌ ")+r.output}
+
+let AUTO=null;const MODE={off:"Off",dry_run:"Dry run",live:"Live"};
+const OLD_SERVER="The dashboard server is an old version and doesn't know automatic orders. Close the UKIC Hub window and double-click start_hub.bat to restart it.";
+async function loadAuto(){const r=await get("/api/autotrade");if(!r.settings){$("auto-gate").innerHTML=`<span class="warn">${OLD_SERVER}</span>`;$("auto-mode").textContent="Not loaded";return}AUTO=r;renderAuto()}
+function renderAuto(){const s=AUTO.settings;
+  if(!("auto_strategy" in s)){$("auto-gate").innerHTML=`<span class="warn">${OLD_SERVER}</span>`}
+  $("auto-mode").textContent=MODE[s.auto_mode];$("auto-now").disabled=!!AUTO.running_now;$("auto-now").textContent=AUTO.running_now?"Dry run in progress…":"Dry run a round now (latest suggestion)";$("auto-mode").className="pill "+(s.auto_mode==="live"?"SELL":s.auto_mode==="dry_run"?"on":"off");
+  if("auto_strategy" in s)$("auto-gate").innerHTML=AUTO.can_go_live?`<span class="on">✓ Live mode can be switched on</span>: last successful dry run ${esc(AUTO.last_good_dry_run)}`:`<span class="warn">Live mode can't be switched on yet: ${esc(AUTO.why_not)}</span>`;
+  const strat=s.auto_strategy||"signals";
+  // [key, label, type, which strategy shows it ("" = both)]
+  const f=[["h","Portfolios"],["auto_portfolio","Competition portfolio (live)","pf",""],["auto_practice_portfolio","Practice portfolio (dry run, really submits)","pf",""],
+    ["h","Strategy"],["auto_strategy","Strategy","sel",""],["auto_min_prob","Minimum Jev rise probability","num",""],
+    ["auto_weight_pct","Each buy, % of the portfolio","num","signals"],["auto_sell","Each sell (all or a number of shares)","text","signals"],
+    ["auto_max_per_run","Max orders per run","num","signals"],["auto_max_per_day","Max orders per day","num","signals"],["auto_us_only","US tickers only (skips ASML, SK hynix, gold, Treasuries)","bool","signals"],
+    ["auto_tilt_max_per_run","Max orders per run","num","tilt"],["auto_tilt_max_per_day","Max orders per day","num","tilt"],["auto_tilt_min_change_pct","Ignore changes smaller than (%)","num","tilt"],
+    ["h","Safety"],["auto_cooldown_hours","Hours before the same stock can trade again","num",""],["auto_headless","Hide the Chrome window","bool",""]];
+  const input=(k,t)=>t==="bool"?`<input type="checkbox" data-a="${k}" data-t="bool" ${s[k]?"checked":""}>`:
+    t==="sel"?`<select data-a="${k}" data-t="text" onchange="AUTO.settings.auto_strategy=this.value;renderAuto()"><option value="signals" ${strat==="signals"?"selected":""}>Jev signals (buy BUYs, sell SELLs)</option><option value="tilt" ${strat==="tilt"?"selected":""}>Sector tilt rebalance</option></select>`:
+    `<input data-a="${k}" data-t="${t==="pf"?"text":t}" value="${esc(s[k]??"")}" ${t==="pf"?'list="pf-list"':""} style="width:${t==="num"?"120px":"260px"}">`;
+  $("auto-form").innerHTML=f.map(([k,l,t,only])=>k==="h"?`<div style="margin-top:10px"><b class="muted">${l}</b></div>`:
+      `<label class="row" ${only&&only!==strat?'style="display:none"':""}><span>${l}</span>${input(k,t)}</label>`).join("")+
+    (strat==="tilt"?`<div class="muted">Targets come from the Sector tilt tab (share ${Math.round((S?.settings?.tilt_share??0.5)*100)}%, cap ${S?.settings?.tilt_cap_pct??6}%). A group only tilts when its top pick's rise probability is at least the minimum above.</div>`:"")+
+    `<label class="row"><span>Which runs may place orders</span>${["morning","intraday"].map(k=>`<label><input type="checkbox" data-kind="${k}" ${s.auto_run_kinds.includes(k)?"checked":""}> ${KIND[k]}</label>`).join(" ")}</label>`;
+  $("auto-ledger").innerHTML="<tr><th>Time</th><th>Mode</th><th>Action</th><th>Result</th><th>Source</th></tr>"+AUTO.ledger.map(r=>`<tr><td class="nowrap">${esc(r.time)}</td><td>${MODE[r.mode]||r.mode}<div class="muted">${esc(r.portfolio||"")}</div></td><td class="${r.action}">${r.action} ${esc(r.symbol)} ${r.weight?esc(r.weight)+"%":r.amount?"$"+esc(r.amount):esc(r.shares)+" shares"}${r.strategy==="tilt"?` · ${r.from}% → ${r.to}%`:r.prob?" · "+pct(r.prob):""}</td><td>${r.ok?"✅":"❌"}${r.submitted===true?" Submitted":r.submitted==="unknown"?" ⚠ Not confirmed, check UMushroom":" Not submitted"}</td><td class="muted">${r.decision==="test"?"Manual dry run":esc(r.decision)}</td></tr>`).join("")||"<tr><td class='muted'>No records yet</td></tr>"}
+async function saveAuto(quiet){if(!AUTO){toast(OLD_SERVER);return false}const b={};document.querySelectorAll("[data-a]").forEach(e=>{const t=e.dataset.t;b[e.dataset.a]=t==="bool"?e.checked:t==="num"?Number(e.value):e.value.trim()});
+  b.auto_run_kinds=[...document.querySelectorAll("[data-kind]")].filter(e=>e.checked).map(e=>e.dataset.kind);
+  const r=await post("/api/autotrade/settings",b);if(r.error){toast("Save failed: "+r.error);return false}AUTO=r;renderAuto();if(!quiet)toast("Limits saved");return true}
+async function previewRound(){if(!(await saveAuto(true)))return;const r=await get("/api/autotrade/preview");$("auto-out").style.display="block";
+  if(r.error==="not found"){$("auto-out").textContent=OLD_SERVER;return}
+  if(!r.ok){$("auto-out").textContent="Preview: "+r.error;return}
+  const head=`Preview (nothing ordered) · ${r.strategy==="tilt"?"Sector tilt rebalance":"Jev signals"} · ${r.portfolio} · Jev run ${r.london}`+
+    (r.snapshot_at?` · holdings from ${r.snapshot_at.slice(0,16).replace("T"," ")} UTC`:"")+(r.mode==="off"?" · automatic orders are Off":"");
+  const lines=r.orders.map(o=>`${o.action.padEnd(4)} ${o.symbol.padEnd(14)} ${o.size.padEnd(26)} ${o.why}`);
+  $("auto-out").textContent=head+"\n\nNext run:\n"+(lines.join("\n")||"nothing to do")+(r.later?.length?`\n\n${r.later.length} more in later runs (per-run limit)`:"")+
+    (r.skipped?.length?"\n\nSkipped: "+r.skipped.map(x=>`${x.symbol} (${x.why})`).join(", "):"")}
+let SP_ACTION=null;
+async function sectorPreview(action){if(!AUTO){toast(OLD_SERVER);return}if(!(await saveAuto(true)))return;SP_ACTION=action;
+  const r=await get("/api/autotrade/sectors?mode="+(action==="live"?"live":"dry_run"));
+  if(r.error==="not found"){toast(OLD_SERVER);return}
+  if(!r.ok){toast(r.error);return}
+  const pf=x=>x==null?"–":Math.round(x*100)+"%";
+  const verb={dry_run:"Switch on Dry run",live:"Switch on Live",now:"Run one round now"}[action];
+  const nextRun=(S?.upcoming||[]).find(u=>(AUTO.settings.auto_run_kinds||[]).includes(u.kind));
+  const when=action==="now"?"Starts right away after you confirm: Chrome opens and the orders below run.":
+    `Nothing runs right away: from the next scheduled run${nextRun?" ("+nextRun.time+")":""} the hub trades by itself after every reasoning run. Use "Dry run a round now" to run one round immediately.`;
+  $("sp-title").textContent=`${verb}: what Jev would do in "${r.portfolio}"`;
+  $("sp-meta").innerHTML=`${r.strategy==="tilt"?"Sector tilt rebalance":"Jev signals"} · Jev run ${esc(r.london)} · minimum rise probability ${Math.round(r.min_prob*100)}% · `+
+`<div class="warn" style="margin:4px 0">${when}</div>`+
+    `${r.total_orders} orders in all, at most ${r.per_run} per run (★ = in the next run)`+
+    (r.snapshot?.at?` · holdings read ${esc(r.snapshot.at.slice(0,16).replace("T"," "))} UTC (${r.snapshot.age_hours}h ago), value ${esc(r.snapshot.value)}, cash ${esc(r.snapshot.cash)}`:"")+
+    (r.plan_error?`<div class="warn" style="margin-top:6px">${esc(r.plan_error)}</div>`:"")+
+    (r.strategy==="tilt"?`<div style="margin-top:6px">Holdings are read again right before each real run, so the orders can differ slightly from this list.</div>`:"");
+  $("sp-body").innerHTML=r.groups.map(g=>`<div style="margin-top:12px"><b>${esc(g.group)}</b> <span class="muted">${g.total}% · ${esc(g.note)}</span>
+    <table><tr><th>Asset</th><th>Jev rise</th><th>Jev fall</th><th>Jev says</th><th>Now</th><th>Target</th><th>Plan</th></tr>${g.assets.map(a=>
+      `<tr><td><b>${esc(a.symbol)}</b>${a.star?" ⭐":""}</td><td>${pf(a.rise)}</td><td>${pf(a.fall)}</td><td class="${a.jev}">${esc(a.jev)}</td>
+       <td>${a.now==null?"–":a.now+"%"}</td><td>${a.target==null?"–":a.target+"%"}</td>
+       <td class="${a.action==="HOLD"?"HOLD":a.action}">${a.action==="HOLD"?"hold "+esc(a.size||""):a.action+" "+esc(a.size)}${a.next_run?" ★":""}</td></tr>`).join("")}</table></div>`).join("");
+  $("sp-ok").textContent=verb;$("sp-ok").className="btn "+(action==="live"?"danger":"primary");$("sp-wrap").style.display="block"}
+function spClose(){$("sp-wrap").style.display="none";SP_ACTION=null}
+async function spRefresh(){const p=SP_ACTION==="live"?AUTO.settings.auto_portfolio:AUTO.settings.auto_practice_portfolio;
+  $("sp-meta").textContent="Reading the holdings of "+p+" (read-only)…";const r=await post("/api/journal",{portfolio:p});
+  if(!r.ok){$("sp-meta").textContent="Could not read the holdings: "+(r.output||r.error||"").slice(-300);return}sectorPreview(SP_ACTION)}
+$("sp-ok").onclick=async()=>{const a=SP_ACTION;spClose();if(a==="now")autoNow(true);else autoMode(a,true)};
+async function autoMode(m,previewed){if(!AUTO){toast(OLD_SERVER);return}let confirmText;
+  if(m==="dry_run"&&!previewed&&!confirm("After each reasoning run, dry run submits orders automatically like live mode, but only in the practice portfolio \""+(AUTO.settings.auto_practice_portfolio||"(not set)")+"\". Continue?"))return;
+  if(m==="live"){confirmText=prompt("Live mode submits orders automatically after each reasoning run (limits below). Type LIVE to confirm");if(confirmText!=="LIVE")return}
+  const r=await post("/api/autotrade/mode",{mode:m,confirm:confirmText});if(!r.ok){toast(r.error||"Switch failed");return}AUTO=r.state;renderAuto();toast("Automatic orders: "+MODE[m])}
+let AUTO_POLL=null;
+async function autoNow(previewed){if(!AUTO){toast(OLD_SERVER);return}
+  if(!(await saveAuto(true)))return;
+  const p=AUTO.settings.auto_practice_portfolio;if(!p){toast("Enter the practice portfolio name first");return}
+  if(!previewed&&!confirm("Using the latest trade suggestion, pick stocks like live mode (at most "+AUTO.settings.auto_max_per_run+" per round) and really submit them in the practice portfolio \""+p+"\". Continue?"))return;
+  const r=await post("/api/autotrade/run_latest",{});if(r.error==="not found"){toast(OLD_SERVER);return}
+  if(!r.ok){toast(r.error||"Could not start");return}
+  $("auto-out").style.display="block";$("auto-out").textContent=`Dry-running the ${r.london} suggestion… Chrome will open for each order; results appear in the log below`;
+  AUTO=r.state;renderAuto();clearInterval(AUTO_POLL);
+  AUTO_POLL=setInterval(async()=>{const s=await get("/api/autotrade");if(!s.settings)return;AUTO=s;renderAuto();
+    if(!s.running_now){clearInterval(AUTO_POLL);$("auto-out").textContent="✅ This dry-run round is finished; see the log below (no orders means no stock met the limits)"}},5000)}
+async function autoTest(){$("auto-out").style.display="block";
+  if(!AUTO){$("auto-out").textContent="❌ "+OLD_SERVER;return}
+  if(!(await saveAuto(true)))return;  // use what is typed in the form, even if "Save limits" was not clicked
+  if(!AUTO.settings.auto_practice_portfolio){$("auto-out").textContent="❌ Enter the practice portfolio name above first (the UMushroom portfolio name, e.g. First Portfolio; not the competition one).";return}
+  if(!confirm("The dry run will really buy "+$("auto-test-sym").value+" in the practice portfolio \""+AUTO.settings.auto_practice_portfolio+"\" (amount: Amount per buy above). Continue?"))return;
+  $("auto-out").textContent="Dry run in progress… Chrome will open and submit an order in the practice portfolio";
+  const r=await post("/api/autotrade/test",{symbol:$("auto-test-sym").value});
+  if(r.error==="not found"){$("auto-out").textContent="❌ "+OLD_SERVER;return}
+  $("auto-out").textContent=(r.ok&&r.submitted===true?"✅ Dry run succeeded, the order was submitted in the practice portfolio\n":r.submitted==="unknown"?"⚠ Sent but not confirmed, check the practice portfolio on UMushroom\n":"❌ Dry run failed\n")+(r.output||r.error||"");if(r.state){AUTO=r.state;renderAuto()}}
+
+// ---------- sector tilt ----------
+let TILT=null;
+async function loadTilt(){const sh=Number($("t-share").value),cap=$("t-cap").value;
+  TILT=await get(`/api/tilt?share=${(isNaN(sh)?50:sh)/100}${cap!==""?"&cap="+cap:""}`);if(TILT.error==="not found"){$("t-meta").textContent=OLD_SERVER;return}
+  $("t-meta").textContent=TILT.decision?`Jev run ${TILT.london} · total ${TILT.total}%`:"No reasoning results yet: run reasoning first";
+  $("t-groups").innerHTML=TILT.groups.map(g=>`<div class="card"><b>${esc(g.group)}</b> <span class="muted">${g.total}% · ${esc(g.note)}</span>
+    <table><tr><th>Asset</th><th>Jev score</th><th>Suggestion</th><th>Base</th><th>Target</th><th></th></tr>${g.assets.map(a=>`<tr><td><b>${esc(a.symbol)}</b>${a.symbol===g.top?" ⭐":""}</td><td>${a.score==null?"–":(a.score>0?"+":"")+a.score.toFixed(2)}</td><td class="${a.action}">${esc(a.action||"")}</td><td>${a.base}%</td><td><b>${a.target}%</b></td><td style="width:35%"><div class="bar"><i style="width:${Math.min(a.target/ (TILT.cap||10)*100,100)}%;background:var(--accent)"></i></div></td></tr>`).join("")}</table></div>`).join("")}
+let PLAN=null;
+async function refreshHoldings(){const p=$("r-portfolio").value.trim();if(!p){toast("Enter the portfolio");return}
+  $("r-meta").textContent="Reading the holdings of "+p+"… Chrome opens the portfolio page (read-only)";const r=await post("/api/journal",{portfolio:p});
+  if(r.error==="not found"){$("r-meta").textContent=OLD_SERVER;return}$("r-meta").textContent=r.ok?"Holdings refreshed":"Could not read the holdings: "+(r.output||"").slice(-300);if(r.ok)loadPlan()}
+async function loadPlan(){const p=$("r-portfolio").value.trim();if(!p){toast("Enter the portfolio");return}
+  PLAN=await get(`/api/rebalance?portfolio=${encodeURIComponent(p)}&share=${Number($("t-share").value)/100}${$("t-cap").value!==""?"&cap="+$("t-cap").value:""}`);
+  if(PLAN.error==="not found"){$("r-meta").textContent=OLD_SERVER;PLAN=null;return}
+  if(!PLAN.ok){$("r-meta").textContent=PLAN.error;$("r-table").innerHTML="";return}
+  $("r-meta").innerHTML=`Holdings of ${esc(p)} from ${esc((PLAN.snapshot_at||"").slice(0,16).replace("T"," "))} UTC (${PLAN.age_hours}h ago${PLAN.age_hours>2?' <span class="warn">: refresh first</span>':""}) · value ${esc(PLAN.value||"")} · cash ${esc(PLAN.cash||"")} · ${PLAN.sells.length} sells, ${PLAN.buys.length} buys`+(PLAN.unknown.length?` · not ours, left alone: ${esc(PLAN.unknown.join(", "))}`:"");
+  const row=(r,act,size)=>`<tr><td class="${act}">${act}</td><td><b>${esc(r.symbol)}</b></td><td>${r.current}%${r.pending?` <span class="muted">+${r.pending}% pending</span>`:""}</td><td>${r.target}%</td><td>${size}</td></tr>`;
+  $("r-table").innerHTML="<tr><th></th><th>Asset</th><th>Now</th><th>Target</th><th>Order</th></tr>"+PLAN.sells.map(r=>row(r,"SELL",r.shares==="all"?"all":r.shares+" shares")).join("")+PLAN.buys.map(r=>row(r,"BUY",r.weight+"% of the portfolio")).join("")}
+function planToBatch(){if(!PLAN||!PLAN.ok){toast("Show the plan first");return}show("orders");$("b-portfolio").value=PLAN.portfolio;$("b-by").value="direct";
+  $("b-text").value=PLAN.lines.join("\n");batchParse();toast(`${PLAN.lines.length} orders sent to batch orders (sells first): preview, then submit`);$("batch-card").scrollIntoView({behavior:"smooth"})}
+async function saveTilt(){await post("/api/settings",{tilt_share:Number($("t-share").value)/100,tilt_cap_pct:Number($("t-cap").value)});toast("Saved as default");refresh()}
+function tiltToBatch(){if(!TILT)return;const lines=TILT.groups.flatMap(g=>g.assets.filter(a=>a.target>0).map(a=>`${a.symbol}, ${a.target}%`));
+  show("orders");$("b-by").value="direct";$("b-text").value=lines.join("\n");batchParse();
+  toast(`${lines.length} target weights sent to batch orders: check the portfolio, then preview`);$("batch-card").scrollIntoView({behavior:"smooth"})}
+
+// ---------- batch orders ----------
+let BATCH_ROWS=[],BATCH=null,BATCH_POLL=null;
+const CUR=()=>({USD:"$",GBP:"£",EUR:"€"}[$("b-cur")?.value]||"$");
+function csvLine(line){const out=[];let cur="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];
+  if(q){if(ch==='"'&&line[i+1]==='"'){cur+='"';i++}else if(ch==='"')q=false;else cur+=ch}
+  else if(ch==='"')q=true;else if(ch===","){out.push(cur);cur=""}else cur+=ch}out.push(cur);return out.map(s=>s.trim())}
+function batchFile(input){const f=input.files[0];if(!f)return;f.text().then(t=>{$("b-text").value=t.replace(/^﻿/,"");batchParse()})}
+function batchParse(){const lines=$("b-text").value.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());const by=$("b-by").value;BATCH_ROWS=[];const bad=[];
+  const total=Number($("b-total").value)||0;$("b-total-row").style.display=by==="weight"?"":"none";
+  const direct=by==="direct"; // the weight is typed into UMushroom's own weight box: no total, no currency
+  if(!lines.length){$("b-meta").textContent="";renderBatchTable();return}
+  if(by==="weight"&&!(total>0)&&lines.length){$("b-meta").innerHTML='<span class="warn">Enter the total to invest: each order is weight % × total.</span>';renderBatchTable();return}
+  // weight % → amount (2 decimals); kept on the row so the table shows both
+  const fromWeight=w=>{const x=Number(String(w).replace(/[%\s]/g,""));return x>0?(total*x/100).toFixed(2):""};
+  const head=csvLine(lines[0]).map(h=>h.toLowerCase());const ci=names=>head.findIndex(h=>names.includes(h));
+  const cCo=ci(["order with","ticker","company","symbol"]),cSh=ci(["buy shares","shares"]),cAm=ci(["or buy amount","amount"]),cWt=ci(["weight %","weight","weight%"]),cNm=ci(["name on umushroom","name"]),cAct=ci(["action","side"]);
+  if(cCo>=0&&(cSh>=0||cAm>=0||cWt>=0)){
+    for(const l of lines.slice(1)){const c=csvLine(l);const co=c[cCo]||"";if(!co)continue;
+      let sh=cSh>=0?(c[cSh]||"").replace(/,/g,""):"",am=cAm>=0?(c[cAm]||"").replace(/[$,]/g,""):"",wt=cWt>=0?(c[cWt]||"").replace(/[%\s]/g,""):"";
+      if(direct){if(!(Number(wt)>0)){bad.push(co+" (no weight)");continue}am="";sh=""}
+      else if(by==="weight"){if(!(Number(wt)>0)){bad.push(co+" (no weight)");continue}am=fromWeight(wt);sh=""}
+      else if(by==="amount"&&am)sh="";else if(by==="shares"&&sh)am="";else if(sh&&am)sh="";
+      const act=cAct>=0&&/sell/i.test(c[cAct]||"")?"sell":"buy";
+      if(/\?/.test(co)){bad.push(co+" (check the identifier first)");continue}
+      BATCH_ROWS.push({action:act,company:co,shares:sh,amount:am,weight:(direct||by==="weight")?wt:"",direct,name:cNm>=0?c[cNm]:""})}
+  }else{
+    // one order per line: "AAPL, $4633.45", "AAPL, 13.7133 shares" or "AAPL, 3.5%"
+    for(const l of lines){const m=/^\s*(buy|sell)?\s*([^,]+?)\s*,\s*(?:\$\s*([\d,.]+)|([\d.]+)\s*%|([\d.]+|all)\s*(?:shares?)?)\s*$/i.exec(l);
+      if(!m){bad.push(l.slice(0,40));continue}
+      if(m[4]&&!direct&&!(total>0)){bad.push(l.slice(0,40)+" (weight needs a total)");continue}
+      BATCH_ROWS.push({action:(m[1]||"buy").toLowerCase(),company:m[2],shares:m[5]||"",amount:m[4]?(direct?"":fromWeight(m[4])):(m[3]||"").replace(/,/g,""),weight:m[4]||"",direct:!!(m[4]&&direct),name:""})}
+  }
+  const sum=BATCH_ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0),wsum=BATCH_ROWS.reduce((s,r)=>s+(Number(r.weight)||0),0);
+  $("b-meta").innerHTML=`${BATCH_ROWS.length} orders ready`+(sum?` · total ${CUR()}${sum.toLocaleString("en-US",{maximumFractionDigits:2})}`:"")+(wsum?(direct?` · ${wsum.toFixed(2)}% of the portfolio (UMushroom works out each amount)`:` (${wsum.toFixed(2)}% of ${CUR()}${total.toLocaleString("en-US")})`):"")+(bad.length?` · <span class="warn">skipped: ${esc(bad.join(" / "))}</span>`:"");renderBatchTable()}
+function renderBatchTable(){const rows=BATCH&&BATCH.rows.length&&(BATCH.running||BATCH.finished)?BATCH.rows:BATCH_ROWS;
+  const icon={waiting:"⏳",running:"▶️",submitted:"✅",previewed:"👁️",failed:"❌",unconfirmed:"⚠",skipped:"⏭️"};
+  $("b-table").innerHTML=rows.length?"<tr><th>#</th><th>Order</th><th>Size</th><th>Status</th></tr>"+rows.map((r,i)=>`<tr><td>${i+1}</td><td class="${r.action==="sell"?"SELL":"BUY"}">${r.action.toUpperCase()} ${esc(r.company)}${r.name?`<div class="muted">${esc(r.name)}</div>`:""}</td><td class="nowrap">${r.amount?CUR()+esc(r.amount):r.shares?esc(r.shares)+" shares":""}${r.weight?`<div class="muted">${esc(r.weight)}%</div>`:""}</td><td>${r.status?icon[r.status]+" "+r.status+(r.result?`<div class="muted">${esc(r.result)}</div>`:""):""}</td></tr>`).join(""):""}
+async function renderBatch(){BATCH=await get("/api/batch");if(BATCH.error==="not found"){BATCH=null;return}
+  if(BATCH.rows.length){const c={};BATCH.rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+    $("b-meta").textContent=`${BATCH.submit?"Submitting":"Previewing"} in "${BATCH.portfolio}" · started ${BATCH.started}`+(BATCH.running?"":` · finished ${BATCH.finished}`)+" · "+Object.entries(c).map(([k,v])=>`${v} ${k}`).join(", ")}
+  renderBatchTable();if(!BATCH.running)clearInterval(BATCH_POLL)}
+async function batchRun(submit){const p=$("b-portfolio").value.trim();if(!p){toast("Enter the portfolio name");return}
+  batchParse();if(!BATCH_ROWS.length){toast("Load or paste the orders first");return}
+  let confirmText="";
+  if(submit){const sum=BATCH_ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0);
+    confirmText=prompt(`Submit ${BATCH_ROWS.length} orders in "${p}" on UMushroom, one after another`+(sum?` (about ${CUR()}${sum.toLocaleString("en-US",{maximumFractionDigits:0})} in total)`:"")+`?\nType the portfolio name (${p}) to confirm.`);if(confirmText===null)return;
+    if(confirmText.trim()!==p){toast("The name didn't match, nothing was submitted");return}}
+  const r=await post("/api/batch/start",{portfolio:p,submit,confirm:confirmText,orders:BATCH_ROWS.map(({action,company,shares,amount,weight,direct})=>({action,company,shares,amount,weight:direct?weight:""}))});
+  if(r.error==="not found"){toast(OLD_SERVER);return}
+  if(!r.ok){toast(r.error||"Could not start");return}
+  toast(submit?"Submitting… Chrome will open for each order":"Previewing… Chrome will open for each order");BATCH=r.state;renderBatch();clearInterval(BATCH_POLL);BATCH_POLL=setInterval(renderBatch,4000)}
+
+async function loadSkill(){const r=await get("/api/skill?name="+$("skill-pick").value);$("skill-text").value=r.text||""}
+async function saveSkill(){await post("/api/skill",{name:$("skill-pick").value,text:$("skill-text").value});toast("Saved")}
+async function loadLog(){const r=await get("/api/log");$("log-text").textContent=r.text;$("log-text").scrollTop=1e9}
+async function runNow(kind){const r=await post("/api/run",{kind});toast(r.started?"Started. Check \"Trade suggestions\" in about a minute":"The previous reasoning run hasn't finished yet");refresh()}
+async function launch(what){const r=await post("/api/launch",{what});toast(r.output)}
+
+async function loadPortfolios(){const r=await get("/api/portfolios").catch(()=>({}));$("pf-list").innerHTML=(r.portfolios||[]).map(n=>`<option value="${esc(n)}">`).join("")}
+window.addEventListener("load",async()=>{await refresh();nav();$("o-portfolio").value=S.settings.default_portfolio;orderUnits();loadPortfolios();batchParse();setInterval(refresh,15000)});
+</script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+{
+  "assets": {
+    "NVDA": {
+      "sector": "Chips",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/nvda-nvidia"
+    },
+    "AMD": {
+      "sector": "Chips",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/amd-advanced-micro-dev"
+    },
+    "INTC": {
+      "sector": "Chips",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/intc-intel"
+    },
+    "TSM": {
+      "sector": "Chips",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/tsm-taiwan-semicon"
+    },
+    "AVGO": {
+      "sector": "Chips",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/avgo-broadcom"
+    },
+    "MU": {
+      "sector": "Memory & equipment",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/mu-micron-technology"
+    },
+    "SNDK": {
+      "sector": "Memory & equipment",
+      "trade": false
+    },
+    "SKHY": {
+      "sector": "Memory & equipment",
+      "trade": true,
+      "us": false,
+      "umushroom": "https://umushroom.com/en/equity/hy9h-sk-hynix"
+    },
+    "ASML": {
+      "sector": "Memory & equipment",
+      "trade": true,
+      "umushroom": "NL0010273215",
+      "us": false
+    },
+    "LITE": {
+      "sector": "Optical & networking",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/lite-lumentum-hldg"
+    },
+    "GLW": {
+      "sector": "Optical & networking",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/glw-corning"
+    },
+    "CSCO": {
+      "sector": "Optical & networking",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/csco-cisco-systems"
+    },
+    "DELL": {
+      "sector": "Servers",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/dell-dell-technolges"
+    },
+    "HPE": {
+      "sector": "Servers",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/hpe-hewlett-packard"
+    },
+    "MSFT": {
+      "sector": "Software & cloud",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/msft-microsoft"
+    },
+    "ORCL": {
+      "sector": "Software & cloud",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/orcl-oracle"
+    },
+    "IBM": {
+      "sector": "Software & cloud",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/ibm-ibm"
+    },
+    "NET": {
+      "sector": "Software & cloud",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/net-cloudflare"
+    },
+    "CRWD": {
+      "sector": "Software & cloud",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/crwd-crwdstrike-hldg"
+    },
+    "PLTR": {
+      "sector": "Software & cloud",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/pltr-palantir-tchnlg-2"
+    },
+    "AAPL": {
+      "sector": "Platforms",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/aapl-apple"
+    },
+    "META": {
+      "sector": "Platforms",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/meta-meta-platforms"
+    },
+    "GOOGL": {
+      "sector": "Platforms",
+      "trade": true
+    },
+    "AMZN": {
+      "sector": "Platforms",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/amzn-amazon-com"
+    },
+    "UBER": {
+      "sector": "Mobility & space",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/uber-uber-tech"
+    },
+    "TSLA": {
+      "sector": "Mobility & space",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/tsla-tesla"
+    },
+    "SPCX": {
+      "sector": "Mobility & space",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/SPCX-space-exploration-technologies"
+    },
+    "GD": {
+      "sector": "Defense",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/gd-general-dynamics"
+    },
+    "NOC": {
+      "sector": "Defense",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/noc-northrop-grumman"
+    },
+    "LMT": {
+      "sector": "Defense",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/lmt-lockheed-martin"
+    },
+    "RTX": {
+      "sector": "Defense",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/rtx-rtx-2"
+    },
+    "WMT": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/wmt-walmart"
+    },
+    "PG": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/pg-procter-gamble"
+    },
+    "JNJ": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/jnj-johnson-johnson"
+    },
+    "LLY": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/lly-eli-lilly-co"
+    },
+    "JPM": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/jpm-jpmorgan-chase"
+    },
+    "XOM": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/xom-exxon-mobil"
+    },
+    "NFLX": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "https://umushroom.com/en/equity/nflx-netflix"
+    },
+    "GOLD": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "FR0013416716",
+      "us": false
+    },
+    "DTLA": {
+      "sector": "Hedges",
+      "trade": true,
+      "umushroom": "IE00BFM6TC58",
+      "us": false
+    }
+  },
+  "horizon_rules": {
+    "immediate": {
+      "label": "Moves the price within hours",
+      "keywords": [
+        "earnings",
+        "results",
+        "guidance",
+        "beats",
+        "misses",
+        "downgrade",
+        "upgrade",
+        "acquire",
+        "acquisition",
+        "merger",
+        "takeover",
+        "buyback",
+        "lawsuit",
+        "verdict",
+        "fine",
+        "recall",
+        "outage",
+        "breach",
+        "halt",
+        "export ban",
+        "sanction",
+        "tariff",
+        "CEO resigns",
+        "bankruptcy",
+        "price target",
+        "layoffs"
+      ]
+    },
+    "delayed": {
+      "label": "Shows up after 12-24 hours",
+      "keywords": [
+        "contract",
+        "awarded",
+        "launch",
+        "launches",
+        "unveils",
+        "partnership",
+        "collaboration",
+        "conference",
+        "roadmap",
+        "plans to",
+        "proposal",
+        "investigation",
+        "approval",
+        "order",
+        "deal",
+        "expands",
+        "factory",
+        "capacity"
+      ]
+    }
+  }
+}
